@@ -1,0 +1,1250 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>WorkIQ — HR Platform</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
+<style>
+:root{--az:#0078d4;--az-dk:#004e8c;--az-lt:#e6f2fb;--bg:#f5f6fa;--srf:#fff;--bdr:#e2e4e9;--txt:#1a1d23;--txt2:#5a6073;--txt3:#9399a8;--grn:#0d5c30;--grn-lt:#e6f9f0;--amb:#7a4a00;--amb-lt:#fef3e6;--red:#b91c1c;--red-lt:#fde8e8;--pur:#4a1a8a;--pur-lt:#f0e9fb;--r:8px;--rl:12px;--sb:220px;--hdr:52px}
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:var(--bg);color:var(--txt);font-size:14px;line-height:1.5}
+button,input,select,textarea{font-family:inherit;font-size:13px}
+input[type=text],input[type=password],input[type=date],input[type=number],input[type=email],select,textarea{padding:7px 10px;border:1px solid var(--bdr);border-radius:var(--r);background:var(--srf);color:var(--txt);width:100%;transition:border .15s}
+input:focus,select:focus,textarea:focus{outline:none;border-color:var(--az);box-shadow:0 0 0 3px rgba(0,120,212,.1)}
+textarea{resize:vertical;min-height:70px}
+.btn{display:inline-flex;align-items:center;gap:5px;padding:6px 14px;border-radius:var(--r);border:1px solid var(--bdr);background:var(--srf);color:var(--txt);cursor:pointer;font-size:12px;font-weight:500;white-space:nowrap;transition:all .12s}
+.btn:hover{background:var(--bg)}.btn:disabled{opacity:.5;cursor:not-allowed}
+.btn-primary{background:var(--az);color:#fff;border-color:var(--az)}.btn-primary:hover{background:var(--az-dk)}
+.btn-success{background:var(--grn-lt);color:var(--grn);border-color:#86efac}
+.btn-danger{background:var(--red-lt);color:var(--red);border-color:#fca5a5}
+.pill{display:inline-block;font-size:11px;padding:2px 9px;border-radius:20px;font-weight:500;white-space:nowrap}
+.pill-green{background:var(--grn-lt);color:var(--grn)}.pill-amber{background:var(--amb-lt);color:var(--amb)}
+.pill-red{background:var(--red-lt);color:var(--red)}.pill-blue{background:var(--az-lt);color:var(--az-dk)}
+.pill-purple{background:var(--pur-lt);color:var(--pur)}.pill-gray{background:var(--bg);color:var(--txt2)}
+.card{background:var(--srf);border:1px solid var(--bdr);border-radius:var(--rl);padding:16px}
+.card-title{font-size:13px;font-weight:600;color:var(--txt);margin-bottom:12px}
+.metric{background:var(--bg);border-radius:var(--r);padding:12px 14px}
+.metric-label{font-size:11px;color:var(--txt2);margin-bottom:3px}
+.metric-value{font-size:22px;font-weight:600;line-height:1}
+.metric-sub{font-size:11px;color:var(--txt3);margin-top:3px}
+.metrics-row{display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:12px;margin-bottom:20px}
+.tbl-wrap{border:1px solid var(--bdr);border-radius:var(--rl);overflow:hidden;margin-bottom:16px}
+table{width:100%;border-collapse:collapse;font-size:13px}
+th{background:var(--bg);padding:9px 12px;text-align:left;font-size:11px;font-weight:600;color:var(--txt2);border-bottom:1px solid var(--bdr)}
+td{padding:9px 12px;border-bottom:1px solid var(--bdr);color:var(--txt);vertical-align:middle}
+tr:last-child td{border-bottom:none}tr:hover td{background:#fafbfc}
+.sh{display:flex;align-items:center;justify-content:space-between;margin-bottom:12px}
+.st{font-size:14px;font-weight:600;color:var(--txt)}
+.fg{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+.fg-group{display:flex;flex-direction:column;gap:5px}
+.fg-group.full{grid-column:1/-1}
+label{font-size:12px;font-weight:500;color:var(--txt2)}
+.info-box{background:var(--az-lt);border-left:3px solid var(--az);border-radius:0 var(--r) var(--r) 0;padding:10px 14px;font-size:12px;color:var(--az-dk);margin-bottom:16px;line-height:1.6}
+.tab-bar{display:flex;border-bottom:1px solid var(--bdr);margin-bottom:20px}
+.tab{padding:9px 16px;font-size:13px;color:var(--txt2);cursor:pointer;border-bottom:2px solid transparent;margin-bottom:-1px;font-weight:500}
+.tab:hover{color:var(--txt)}.tab.active{color:var(--az);border-bottom-color:var(--az)}
+.tw{display:flex;align-items:center;gap:8px;cursor:pointer;padding:6px 0}
+.tt{width:36px;height:20px;border-radius:10px;background:var(--bdr);border:1px solid #ccc;position:relative;transition:background .2s;flex-shrink:0}
+.tt.on{background:var(--az);border-color:var(--az)}
+.tk{width:14px;height:14px;border-radius:50%;background:#fff;position:absolute;top:2px;left:2px;transition:left .2s;box-shadow:0 1px 2px rgba(0,0,0,.2)}
+.tt.on .tk{left:18px}
+.bal-bar{height:6px;border-radius:3px;background:var(--bg);overflow:hidden;margin-top:5px}
+.bal-fill{height:100%;border-radius:3px;transition:width .3s}
+.tl-row{display:flex;align-items:center;gap:10px;margin-bottom:8px}
+.tl-name{width:110px;flex-shrink:0;font-size:12px;color:var(--txt2);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.tl-bar{flex:1;height:18px;border-radius:4px;background:var(--bg);position:relative;overflow:hidden}
+.tl-seg{position:absolute;top:0;height:100%;border-radius:3px}
+.tl-on{background:#22c55e}.tl-idle{background:#f59e0b}
+.tl-hrs{width:36px;text-align:right;font-size:12px;font-weight:600;flex-shrink:0}
+.sd{width:7px;height:7px;border-radius:50%;flex-shrink:0}
+.s-on{background:#22c55e}.s-idle{background:#f59e0b}.s-off{background:#9ca3af}
+.ap-chain{display:flex;align-items:center;flex-wrap:wrap;margin:12px 0}
+.ap-step{display:flex;flex-direction:column;align-items:center;gap:4px;min-width:80px}
+.ap-dot{width:34px;height:34px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:700;border:2px solid}
+.ap-done{background:var(--grn-lt);color:var(--grn);border-color:#22c55e}
+.ap-pending{background:var(--amb-lt);color:var(--amb);border-color:#f59e0b}
+.ap-waiting{background:var(--bg);color:var(--txt3);border-color:var(--bdr);border-style:dashed}
+.ap-rejected{background:var(--red-lt);color:var(--red);border-color:#ef4444}
+.ap-label{font-size:10px;color:var(--txt2);text-align:center;max-width:80px;line-height:1.3}
+.ap-arr{width:24px;height:2px;background:var(--bdr);margin-bottom:18px;flex-shrink:0}
+.cal-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:3px}
+.cal-day{aspect-ratio:1;border-radius:4px;display:flex;align-items:center;justify-content:center;font-size:11px;color:var(--txt3)}
+.cal-worked{background:#bbf7d0;color:var(--grn);font-weight:600}.cal-leave{background:var(--red-lt);color:var(--red);font-weight:600}
+.cal-holiday{background:var(--az-lt);color:var(--az-dk);font-weight:600}.cal-weekend{background:var(--bg)}
+.cal-today{outline:2px solid var(--az)}
+.cal-legend{display:flex;gap:12px;margin-top:10px;flex-wrap:wrap}
+.cl-item{display:flex;align-items:center;gap:5px;font-size:11px;color:var(--txt2)}
+.cl-dot{width:10px;height:10px;border-radius:2px}
+#login-screen{display:flex;align-items:center;justify-content:center;min-height:100vh;background:linear-gradient(135deg,#e6f2fb 0%,#f5f6fa 100%)}
+.lbox{background:var(--srf);border:1px solid var(--bdr);border-radius:16px;padding:36px 32px;width:440px;box-shadow:0 4px 24px rgba(0,0,0,.07)}
+.logo{display:flex;align-items:center;gap:10px;margin-bottom:24px}
+.logo-icon{width:36px;height:36px;background:var(--az);border-radius:8px;display:flex;align-items:center;justify-content:center}
+.logo-icon svg{width:20px;height:20px;fill:#fff}
+.lerr{background:var(--red-lt);color:var(--red);border-radius:var(--r);padding:9px 12px;font-size:12px;margin-bottom:14px;display:none}
+.pgrid{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:20px}
+.pcard{border:1px solid var(--bdr);border-radius:var(--r);padding:10px 12px;cursor:pointer;transition:all .12s}
+.pcard:hover,.pcard.sel{border-color:var(--az);background:var(--az-lt)}
+.pcard-name{font-size:13px;font-weight:600}.pcard-role{font-size:11px;color:var(--txt2);margin-top:1px}.pcard-cred{font-size:11px;color:var(--txt3);margin-top:4px;font-family:monospace}
+#app-shell{display:none;height:100vh;overflow:hidden}
+.shell{display:flex;height:100vh}
+.sidebar{width:var(--sb);background:var(--srf);border-right:1px solid var(--bdr);display:flex;flex-direction:column;flex-shrink:0;overflow:hidden}
+.sb-hdr{padding:14px 16px;border-bottom:1px solid var(--bdr)}
+.brand{display:flex;align-items:center;gap:9px}
+.brand-icon{width:30px;height:30px;background:var(--az);border-radius:7px;display:flex;align-items:center;justify-content:center;flex-shrink:0}
+.brand-icon svg{width:16px;height:16px;fill:#fff}
+.brand-name{font-size:14px;font-weight:700;color:var(--txt)}.brand-sub{font-size:11px;color:var(--txt3)}
+.rbadge{display:inline-block;font-size:10px;font-weight:600;padding:2px 8px;border-radius:20px;margin-top:8px}
+nav{flex:1;padding:8px 0;overflow-y:auto}
+.nav-sec{padding:8px 16px 3px;font-size:10px;font-weight:600;color:var(--txt3);letter-spacing:.07em;text-transform:uppercase}
+.nav-item{display:flex;align-items:center;gap:8px;padding:8px 16px;font-size:13px;color:var(--txt2);cursor:pointer;border-left:2px solid transparent;transition:all .12s;font-weight:500}
+.nav-item:hover{background:var(--bg);color:var(--txt)}.nav-item.active{background:var(--az-lt);color:var(--az);border-left-color:var(--az)}
+.nb{margin-left:auto;font-size:10px;padding:1px 6px;border-radius:10px;font-weight:600}
+.nb-a{background:var(--amb-lt);color:var(--amb)}.nb-r{background:var(--red-lt);color:var(--red)}
+.user-area{padding:12px 16px;border-top:1px solid var(--bdr);display:flex;align-items:center;gap:9px}
+.av{width:32px;height:32px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;flex-shrink:0}
+.uname{font-size:12px;font-weight:600;color:var(--txt)}.urole{font-size:11px;color:var(--txt3)}
+.logout-btn{margin-left:auto;background:none;border:none;cursor:pointer;color:var(--txt3);font-size:18px;line-height:1}
+.logout-btn:hover{color:var(--red)}
+.main{flex:1;display:flex;flex-direction:column;overflow:hidden;min-width:0}
+.topbar{height:var(--hdr);border-bottom:1px solid var(--bdr);display:flex;align-items:center;padding:0 20px;gap:12px;background:var(--srf);flex-shrink:0}
+.topbar-title{font-size:15px;font-weight:700;color:var(--txt);flex:1}
+.e-dot{width:7px;height:7px;border-radius:50%;background:#22c55e;flex-shrink:0}
+.content{flex:1;overflow-y:auto;padding:20px;min-width:0}
+#modal-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.4);z-index:200;align-items:center;justify-content:center}
+#modal-overlay.open{display:flex}
+.modal{background:var(--srf);border-radius:var(--rl);border:1px solid var(--bdr);width:540px;max-width:95vw;max-height:90vh;overflow-y:auto;padding:22px;box-shadow:0 8px 32px rgba(0,0,0,.12)}
+.mhdr{display:flex;align-items:center;justify-content:space-between;margin-bottom:18px}
+.mtitle{font-size:15px;font-weight:700;color:var(--txt)}
+.mclose{background:none;border:none;font-size:20px;cursor:pointer;color:var(--txt3);line-height:1}
+.mclose:hover{color:var(--red)}
+.mactions{display:flex;gap:8px;justify-content:flex-end;margin-top:18px;padding-top:14px;border-top:1px solid var(--bdr)}
+.toast{position:fixed;bottom:20px;right:20px;z-index:300;background:var(--txt);color:#fff;padding:10px 18px;border-radius:var(--r);font-size:13px;font-weight:500;opacity:0;transform:translateY(10px);transition:all .25s;pointer-events:none}
+.toast.show{opacity:1;transform:translateY(0)}
+.toast.success{background:#0d5c30}.toast.error{background:var(--red)}
+.sync-log{background:#1a1d23;border-radius:var(--r);padding:12px;font-family:monospace;font-size:11px;height:180px;overflow-y:auto;color:#e2e4e9}
+.sync-log .info{color:#22c55e}.sync-log .warn{color:#f59e0b}.sync-log .error{color:#ef4444}
+.loading{display:flex;align-items:center;justify-content:center;padding:40px;color:var(--txt2);font-size:13px;gap:8px}
+.spinner{width:16px;height:16px;border:2px solid var(--bdr);border-top-color:var(--az);border-radius:50%;animation:spin .6s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+</style>
+</head>
+<body>
+
+<!-- LOGIN -->
+<div id="login-screen">
+  <div class="lbox">
+    <div class="logo">
+      <div class="logo-icon"><svg viewBox="0 0 20 20"><path d="M10 2L3 6v8l7 4 7-4V6L10 2zm0 2.3l4.5 2.6-4.5 2.6L5.5 6.9 10 4.3zm-5.5 4l4.5 2.6V15l-4.5-2.6V8.3zm6.5 2.6l4.5-2.6v4.1L11 15v-4.1z"/></svg></div>
+      <div><div style="font-size:20px;font-weight:700">WorkIQ</div><div style="font-size:11px;color:var(--txt3)">Entra ID HR Platform</div></div>
+    </div>
+    <div style="font-size:13px;font-weight:600;margin-bottom:10px">Select a profile</div>
+    <div class="pgrid" id="pgrid">
+      <div class="pcard" data-id="employee" onclick="selProfile(this)"><div style="display:flex;align-items:center;gap:7px;margin-bottom:4px"><div class="av" style="width:26px;height:26px;background:#e6f2fb;color:#004e8c;font-size:10px">AJ</div><div><div class="pcard-name">Alex Johnson</div><div class="pcard-role">Employee</div></div></div><div class="pcard-cred">alex@company.com / employee123</div></div>
+      <div class="pcard" data-id="manager" onclick="selProfile(this)"><div style="display:flex;align-items:center;gap:7px;margin-bottom:4px"><div class="av" style="width:26px;height:26px;background:#e6f9f0;color:#0d5c30;font-size:10px">MC</div><div><div class="pcard-name">Maria Chen</div><div class="pcard-role">Manager</div></div></div><div class="pcard-cred">maria@company.com / manager123</div></div>
+      <div class="pcard" data-id="hr" onclick="selProfile(this)"><div style="display:flex;align-items:center;gap:7px;margin-bottom:4px"><div class="av" style="width:26px;height:26px;background:#fef3e6;color:#7a4a00;font-size:10px">SA</div><div><div class="pcard-name">Sarah Ahmed</div><div class="pcard-role">HR Admin</div></div></div><div class="pcard-cred">sarah@company.com / hr123</div></div>
+      <div class="pcard" data-id="director" onclick="selProfile(this)"><div style="display:flex;align-items:center;gap:7px;margin-bottom:4px"><div class="av" style="width:26px;height:26px;background:#f0e9fb;color:#4a1a8a;font-size:10px">DP</div><div><div class="pcard-name">David Park</div><div class="pcard-role">Director</div></div></div><div class="pcard-cred">david@company.com / director123</div></div>
+    </div>
+    <div id="lerr" class="lerr"></div>
+    <button class="btn btn-primary" style="width:100%;padding:10px;font-size:14px;justify-content:center" onclick="doLogin()">Sign in</button>
+    <div style="font-size:11px;color:var(--txt3);text-align:center;margin:12px 0">or enter manually</div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
+      <input type="email" id="mu" placeholder="Email address">
+      <input type="password" id="mp" placeholder="Password" onkeydown="if(event.key==='Enter')doLogin()">
+    </div>
+  </div>
+</div>
+
+<!-- APP SHELL -->
+<div id="app-shell">
+<div class="shell">
+  <div class="sidebar">
+    <div class="sb-hdr">
+      <div class="brand">
+        <div class="brand-icon"><svg viewBox="0 0 20 20"><path d="M10 2L3 6v8l7 4 7-4V6L10 2zm0 2.3l4.5 2.6-4.5 2.6L5.5 6.9 10 4.3zm-5.5 4l4.5 2.6V15l-4.5-2.6V8.3zm6.5 2.6l4.5-2.6v4.1L11 15v-4.1z"/></svg></div>
+        <div><div class="brand-name">WorkIQ</div><div class="brand-sub">Entra ID Platform</div></div>
+      </div>
+      <div id="rbadge" class="rbadge"></div>
+    </div>
+    <nav id="main-nav"></nav>
+    <div class="user-area">
+      <div class="av" id="uav"></div>
+      <div><div class="uname" id="uname"></div><div class="urole" id="urole"></div></div>
+      <button class="logout-btn" onclick="doLogout()" title="Sign out">&#x2715;</button>
+    </div>
+  </div>
+  <div class="main">
+    <div class="topbar">
+      <div class="topbar-title" id="ptitle">Dashboard</div>
+      <div class="e-dot" id="entra-dot" style="background:#9ca3af"></div>
+      <div style="font-size:12px;color:var(--txt2)" id="entra-lbl">Entra not configured</div>
+      <button class="btn" style="font-size:11px;padding:4px 10px" id="save-bar-btn" onclick="saveCurrentPage()" style="display:none">Save changes</button>
+    </div>
+    <div class="content" id="page-content"></div>
+  </div>
+</div>
+</div>
+
+<!-- MODAL -->
+<div id="modal-overlay">
+  <div class="modal">
+    <div class="mhdr"><div class="mtitle" id="mtitle"></div><button class="mclose" onclick="closeModal()">&#x2715;</button></div>
+    <div id="mbody"></div>
+  </div>
+</div>
+<div class="toast" id="toast"></div>
+
+<script>
+// ─── State ────────────────────────────────────────────────────────────────────
+let me = null, view = '', tabState = {}, chartCache = {}, pendingSave = null;
+
+// ─── API ──────────────────────────────────────────────────────────────────────
+async function api(method, path, body) {
+  const opts = { method, headers: {} };
+  if (body) { opts.body = JSON.stringify(body); opts.headers['Content-Type'] = 'application/json'; }
+  const r = await fetch('/api' + path, opts);
+  const data = await r.json().catch(() => ({}));
+  if (!r.ok) throw new Error(data.error || `HTTP ${r.status}`);
+  return data;
+}
+const GET  = p => api('GET', p);
+const POST = (p,b) => api('POST', p, b);
+const PUT  = (p,b) => api('PUT', p, b);
+
+// ─── Toast ────────────────────────────────────────────────────────────────────
+function toast(msg, type='success') {
+  const t = document.getElementById('toast');
+  t.textContent = msg; t.className = `toast show ${type}`;
+  setTimeout(() => t.className = 'toast', 3000);
+}
+
+// ─── Auth ─────────────────────────────────────────────────────────────────────
+let selEmail = '', selPass = '';
+function selProfile(card) {
+  document.querySelectorAll('.pcard').forEach(c => c.classList.remove('sel'));
+  card.classList.add('sel');
+  const creds = card.querySelector('.pcard-cred').textContent.split(' / ');
+  selEmail = creds[0]; selPass = creds[1];
+  document.getElementById('mu').value = selEmail;
+  document.getElementById('mp').value = selPass;
+}
+async function doLogin() {
+  const email = document.getElementById('mu').value || selEmail;
+  const pass  = document.getElementById('mp').value || selPass;
+  if (!email) { showErr('Select a profile or enter credentials'); return; }
+  try {
+    const r = await POST('/login', { username: email, password: pass });
+    me = r.user; bootApp();
+  } catch(e) { showErr(e.message); }
+}
+function showErr(m) {
+  const el = document.getElementById('lerr');
+  el.textContent = m; el.style.display = 'block';
+  setTimeout(() => el.style.display = 'none', 4000);
+}
+async function doLogout() {
+  await POST('/logout'); me = null;
+  document.getElementById('app-shell').style.display = 'none';
+  document.getElementById('login-screen').style.display = 'flex';
+  document.getElementById('mu').value = '';
+  document.getElementById('mp').value = '';
+  document.querySelectorAll('.pcard').forEach(c => c.classList.remove('sel'));
+}
+async function checkSession() {
+  try { me = await GET('/me'); bootApp(); } catch {}
+}
+
+const AV_STYLES = {employee:'background:#e6f2fb;color:#004e8c',manager:'background:#e6f9f0;color:#0d5c30',hr:'background:#fef3e6;color:#7a4a00',director:'background:#f0e9fb;color:#4a1a8a'};
+const BADGE_STYLES = {employee:'background:#e6f2fb;color:#004e8c',manager:'background:#e6f9f0;color:#0d5c30',hr:'background:#fef3e6;color:#7a4a00',director:'background:#f0e9fb;color:#4a1a8a'};
+
+async function bootApp() {
+  const ini = me.name.split(' ').map(w=>w[0]).join('').slice(0,2).toUpperCase();
+  const av = document.getElementById('uav');
+  av.style.cssText = AV_STYLES[me.role]; av.textContent = ini;
+  document.getElementById('uname').textContent = me.name;
+  document.getElementById('urole').textContent = me.title || me.role;
+  const badge = document.getElementById('rbadge');
+  badge.style.cssText = BADGE_STYLES[me.role];
+  badge.textContent = me.role.charAt(0).toUpperCase() + me.role.slice(1);
+  document.getElementById('login-screen').style.display = 'none';
+  document.getElementById('app-shell').style.display = 'block';
+  tabState = {}; pendingSave = null;
+  buildNav();
+  // Check entra config
+  if (me.role === 'hr') checkEntraStatus();
+  navigate(NAV_DEFS[me.role][0].id);
+}
+
+async function checkEntraStatus() {
+  try {
+    const cfg = await GET('/entra/config');
+    const dot = document.getElementById('entra-dot');
+    const lbl = document.getElementById('entra-lbl');
+    if (cfg.tenant_id) {
+      dot.style.background = cfg.last_sync_status === 'success' ? '#22c55e' : '#f59e0b';
+      lbl.textContent = cfg.last_sync_at ? `Synced ${cfg.last_sync_at.slice(11,16)}` : 'Entra configured';
+    } else {
+      dot.style.background = '#9ca3af'; lbl.textContent = 'Entra not configured';
+    }
+  } catch {}
+}
+
+// ─── Nav ──────────────────────────────────────────────────────────────────────
+const NAV_DEFS = {
+  employee:[{id:'emp-dash',label:'My dashboard'},{id:'my-activity',label:'My activity log'},{id:'apply-leave',label:'Apply for leave'},{id:'my-leaves',label:'My leave requests',badge:'',badgeCls:'nb-a'},{id:'my-calendar',label:'My calendar'}],
+  manager:[{id:'mgr-dash',label:'Team dashboard'},{id:'team-activity',label:'Team activity'},{id:'mgr-approvals',label:'Pending approvals',badge:'',badgeCls:'nb-r'},{id:'team-calendar',label:'Team calendar'},{id:'my-leaves',label:'My leaves'}],
+  hr:[{id:'hr-dash',label:'HR dashboard',sec:'OVERVIEW'},{id:'all-activity',label:'All activity'},{id:'all-leaves',label:'Leave requests',sec:'LEAVE',badge:'',badgeCls:'nb-r'},{id:'leave-types',label:'Leave types'},{id:'approval-rules',label:'Approval rules'},{id:'calendars',label:'Calendar management',sec:'ADMIN'},{id:'cal-assign',label:'Employee assignment'},{id:'leave-balance',label:'Leave balance engine'},{id:'employees',label:'Employee directory'},{id:'departments',label:'Departments & teams'},{id:'system',label:'System settings',sec:'SYSTEM'},{id:'entra-config',label:'Entra ID config'},{id:'audit-log',label:'Audit log'}],
+  director:[{id:'dir-dash',label:'Executive dashboard'},{id:'dir-approvals',label:'Final approvals',badge:'',badgeCls:'nb-r'},{id:'all-activity',label:'Activity overview'},{id:'reports',label:'Reports'}],
+};
+const PTITLES = {'emp-dash':'My dashboard','my-activity':'My activity log','apply-leave':'Apply for leave','my-leaves':'My leave requests','my-calendar':'My calendar','mgr-dash':'Team dashboard','team-activity':'Team activity','mgr-approvals':'Pending approvals','team-calendar':'Team calendar','hr-dash':'HR dashboard','all-activity':'Activity overview','all-leaves':'All leave requests','leave-types':'Leave types','approval-rules':'Approval workflows','calendars':'Calendar management','cal-assign':'Employee calendar assignment','leave-balance':'Leave balance engine','employees':'Employee directory','departments':'Departments & teams','system':'System settings','entra-config':'Entra ID / Azure config','audit-log':'Audit log','dir-dash':'Executive dashboard','dir-approvals':'Final approvals','reports':'Reports'};
+
+function buildNav() {
+  const items = NAV_DEFS[me.role];
+  let html = '';
+  items.forEach(item => {
+    if (item.sec) html += `<div class="nav-sec">${item.sec}</div>`;
+    html += `<div class="nav-item${item.id===view?' active':''}" onclick="navigate('${item.id}')">${item.label}${item.badge!==undefined?`<span class="nb ${item.badgeCls||''}" id="nb-${item.id}">…</span>`:''}</div>`;
+  });
+  document.getElementById('main-nav').innerHTML = html;
+  loadBadges();
+}
+async function loadBadges() {
+  try {
+    if (me.role === 'manager' || me.role === 'director') {
+      const reqs = await GET('/leave-requests?status=pending_' + (me.role==='director'?'director':'manager'));
+      const el = document.getElementById('nb-' + (me.role==='director'?'dir-approvals':'mgr-approvals'));
+      if (el) { el.textContent = reqs.length; el.style.display = reqs.length ? '' : 'none'; }
+    }
+    if (me.role === 'hr') {
+      const pending = await GET('/leave-requests');
+      const count = pending.filter(r => r.status !== 'approved' && r.status !== 'rejected').length;
+      const el = document.getElementById('nb-all-leaves');
+      if (el) { el.textContent = count; el.style.display = count ? '' : 'none'; }
+    }
+  } catch {}
+}
+
+function navigate(id) {
+  view = id; pendingSave = null;
+  buildNav();
+  Object.values(chartCache).forEach(c => { try { c.destroy(); } catch {} });
+  chartCache = {};
+  document.getElementById('ptitle').textContent = PTITLES[id] || id;
+  document.getElementById('save-bar-btn').style.display = 'none';
+  const el = document.getElementById('page-content');
+  el.innerHTML = '<div class="loading"><div class="spinner"></div> Loading…</div>';
+  const renders = {'emp-dash':vEmpDash,'my-activity':vMyActivity,'apply-leave':vApplyLeave,'my-leaves':vMyLeaves,'my-calendar':vCalendar,'mgr-dash':vMgrDash,'team-activity':vTeamActivity,'mgr-approvals':vApprovals,'team-calendar':vCalendar,'hr-dash':vHRDash,'all-activity':vTeamActivity,'all-leaves':vAllLeaves,'leave-types':vLeaveTypes,'approval-rules':vApprovalRules,'calendars':vCalendars,'cal-assign':vCalAssign,'leave-balance':vLeaveBalance,'employees':vEmployees,'departments':vDepartments,'system':vSystem,'entra-config':vEntraConfig,'audit-log':vAuditLog,'dir-dash':vDirDash,'dir-approvals':vApprovals,'reports':vReports};
+  if (renders[id]) renders[id](el);
+  else el.innerHTML = '';
+}
+
+function showSaveBtn(fn) {
+  pendingSave = fn;
+  document.getElementById('save-bar-btn').style.display = '';
+}
+async function saveCurrentPage() {
+  if (pendingSave) {
+    try { await pendingSave(); toast('Saved successfully'); }
+    catch(e) { toast(e.message, 'error'); }
+  }
+}
+
+// ─── Helper widgets ───────────────────────────────────────────────────────────
+function mkToggle(on, id='') {
+  return `<div class="tw" onclick="this.querySelector('.tt').classList.toggle('on')"><div class="tt${on?' on':''}"${id?` id="${id}"`:''}><div class="tk"></div></div></div>`;
+}
+function isOn(id) { return document.getElementById(id)?.classList.contains('on'); }
+function v(id) { return document.getElementById(id)?.value || ''; }
+function statusPill(s) {
+  const m={approved:['pill-green','Approved'],rejected:['pill-red','Rejected'],pending_manager:['pill-amber','Awaiting manager'],pending_hr:['pill-amber','Awaiting HR'],pending_director:['pill-purple','Awaiting director']};
+  const [cls,label]=m[s]||['pill-gray',s]; return `<span class="pill ${cls}">${label}</span>`;
+}
+function miniChain(approvals) {
+  if (!approvals) return '';
+  return `<div style="display:flex;gap:3px;align-items:center">${approvals.map((a,i)=>{const c=a.status==='done'?'#22c55e':a.status==='pending'?'#f59e0b':a.status==='rejected'?'#ef4444':'#d1d5db';return `<div title="${a.role}: ${a.approver_name||''}" style="width:18px;height:18px;border-radius:50%;background:${c};display:flex;align-items:center;justify-content:center;font-size:9px;font-weight:700;color:#fff">${i+1}</div>`+(i<approvals.length-1?'<div style="width:8px;height:1px;background:var(--bdr)"></div>':'');}).join('')}</div>`;
+}
+function avDiv(emp, sz=30) {
+  const ini = emp.initials || (emp.name||'').split(' ').map(w=>w[0]).join('').slice(0,2).toUpperCase();
+  return `<div class="av" style="width:${sz}px;height:${sz}px;font-size:${sz<28?9:11}px;background:${emp.av_bg||'#e6f2fb'};color:${emp.av_color||'#004e8c'}">${ini}</div>`;
+}
+function showModal(title, body) {
+  document.getElementById('mtitle').textContent = title;
+  document.getElementById('mbody').innerHTML = body;
+  document.getElementById('modal-overlay').classList.add('open');
+}
+function closeModal() { document.getElementById('modal-overlay').classList.remove('open'); }
+document.getElementById('modal-overlay').addEventListener('click', e => { if(e.target===e.currentTarget) closeModal(); });
+
+// ─── Employee dashboard ───────────────────────────────────────────────────────
+async function vEmpDash(el) {
+  const [bals, reqs] = await Promise.all([GET('/leave-balances'), GET('/leave-requests')]);
+  const annual = bals.find(b => b.type_name === 'Annual Leave') || {};
+  const sick   = bals.find(b => b.type_name === 'Sick Leave')   || {};
+  const pending = reqs.filter(r => r.status !== 'approved' && r.status !== 'rejected').length;
+  const annBal = ((annual.accrued||0) + (annual.adjustment||0)) - (annual.used||0);
+  const sickBal= ((sick.accrued||0) + (sick.adjustment||0)) - (sick.used||0);
+  el.innerHTML = `
+  <div class="metrics-row">
+    <div class="metric"><div class="metric-label">Annual leave left</div><div class="metric-value">${annBal.toFixed(0)}d</div><div class="metric-sub">of ${annual.entitled||24} days</div></div>
+    <div class="metric"><div class="metric-label">Sick days left</div><div class="metric-value">${sickBal.toFixed(0)}d</div><div class="metric-sub">of ${sick.entitled||14} days</div></div>
+    <div class="metric"><div class="metric-label">Pending requests</div><div class="metric-value" style="color:var(--amb)">${pending}</div></div>
+    <div class="metric"><div class="metric-label">Days used (annual)</div><div class="metric-value">${(annual.used||0).toFixed(0)}d</div></div>
+  </div>
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:16px">
+    <div class="card"><div class="card-title">Leave balance</div>
+      <div style="position:relative;height:200px"><canvas id="c-bal"></canvas></div></div>
+    <div class="card"><div class="card-title">Recent requests</div>
+      ${reqs.slice(0,4).map(r=>`<div style="display:flex;align-items:center;gap:8px;padding:7px 0;border-bottom:1px solid var(--bdr)">
+        <div style="flex:1;font-size:12px">${r.type_name} · ${r.days}d</div>${statusPill(r.status)}</div>`).join('')}
+      ${!reqs.length ? '<div style="font-size:12px;color:var(--txt2);padding:8px 0">No requests yet.</div>' : ''}
+    </div>
+  </div>`;
+  chartCache.bal = new Chart(document.getElementById('c-bal'),{type:'doughnut',data:{labels:bals.map(b=>b.type_name),datasets:[{data:bals.map(b=>Math.max(0,((b.accrued||0)+(b.adjustment||0))-(b.used||0))),backgroundColor:bals.map(b=>b.color||'#0078d4'),borderWidth:0}]},options:{responsive:true,maintainAspectRatio:false,cutout:'60%',plugins:{legend:{position:'right',labels:{font:{size:11},boxWidth:10}}}}});
+}
+
+// ─── My activity ──────────────────────────────────────────────────────────────
+async function vMyActivity(el) {
+  const logs = await GET('/activity');
+  el.innerHTML = `<div class="info-box">Your sign-in events synced from Entra ID audit logs.</div>
+  <div class="tbl-wrap"><table><tr><th>Date/Time</th><th>Event</th><th>IP address</th></tr>
+  ${logs.length ? logs.slice(0,20).map(l=>`<tr><td style="font-family:monospace;font-size:11px">${l.event_time?.slice(0,19).replace('T',' ')}</td><td><span class="pill ${l.event_type==='SignIn'?'pill-green':'pill-gray'}">${l.event_type}</span></td><td style="font-size:11px;color:var(--txt3)">${l.ip_address||'—'}</td></tr>`).join('') : '<tr><td colspan="3" style="color:var(--txt2);text-align:center;padding:20px">No activity synced yet.</td></tr>'}
+  </table></div>`;
+}
+
+// ─── Apply leave ──────────────────────────────────────────────────────────────
+async function vApplyLeave(el) {
+  const [lts, bals] = await Promise.all([GET('/leave-types'), GET('/leave-balances')]);
+  el.innerHTML = `<div class="info-box">Requests go through minimum 2 approval levels. Requests over <span id="l3-threshold">5</span> days require Director approval.</div>
+  <div class="card">
+    <div class="card-title">Leave balance summary</div>
+    <div class="metrics-row">${bals.slice(0,4).map(b=>`<div class="metric"><div class="metric-label" style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${b.type_name}</div><div class="metric-value">${Math.max(0,((b.accrued||0)+(b.adjustment||0))-(b.used||0)).toFixed(0)}d</div><div class="metric-sub">of ${b.entitled||0}d</div></div>`).join('')}</div>
+  </div>
+  <div class="card" style="margin-top:16px">
+    <div class="card-title">New leave request</div>
+    <div class="fg" style="margin-bottom:14px">
+      <div class="fg-group"><label>Leave type</label>
+        <select id="lt-sel" onchange="updateChain()">${lts.map(lt=>`<option value="${lt.id}">${lt.name}</option>`).join('')}</select></div>
+      <div class="fg-group"><label>Days</label><input type="number" id="lt-days" value="3" min="1" max="90" oninput="updateChain()"></div>
+      <div class="fg-group"><label>From date</label><input type="date" id="lt-from" value="${new Date().toISOString().slice(0,10)}"></div>
+      <div class="fg-group"><label>To date</label><input type="date" id="lt-to"></div>
+      <div class="fg-group full"><label>Reason</label><textarea id="lt-reason" placeholder="Describe the reason…"></textarea></div>
+    </div>
+    <div style="font-size:12px;font-weight:600;color:var(--txt2);margin-bottom:8px">Approval chain</div>
+    <div class="ap-chain" id="chain-preview">
+      <div class="ap-step"><div class="ap-dot ap-pending">1</div><div class="ap-label">Manager</div></div>
+      <div class="ap-arr"></div>
+      <div class="ap-step"><div class="ap-dot ap-waiting">2</div><div class="ap-label">HR Admin</div></div>
+    </div>
+    <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:14px">
+      <button class="btn btn-primary" onclick="submitLeave()">Submit request</button>
+    </div>
+  </div>`;
+  // Load threshold
+  try { const s = await GET('/settings'); document.getElementById('l3-threshold').textContent = s.approval_l3_threshold_days || 5; } catch {}
+}
+function updateChain() {
+  const days = parseInt(document.getElementById('lt-days')?.value||3);
+  const ch = document.getElementById('chain-preview'); if(!ch) return;
+  let html = `<div class="ap-step"><div class="ap-dot ap-pending">1</div><div class="ap-label">Manager</div></div><div class="ap-arr"></div><div class="ap-step"><div class="ap-dot ap-waiting">2</div><div class="ap-label">HR Admin</div></div>`;
+  if (days > 5) html += `<div class="ap-arr"></div><div class="ap-step"><div class="ap-dot ap-waiting">3</div><div class="ap-label">Director</div></div>`;
+  ch.innerHTML = html;
+}
+async function submitLeave() {
+  const ltId = document.getElementById('lt-sel')?.value;
+  const days = parseFloat(document.getElementById('lt-days')?.value);
+  const from = document.getElementById('lt-from')?.value;
+  const to   = document.getElementById('lt-to')?.value;
+  const reason = document.getElementById('lt-reason')?.value;
+  if (!ltId || !days || !from || !to) { toast('Fill all required fields','error'); return; }
+  try {
+    const r = await POST('/leave-requests', { leave_type_id: parseInt(ltId), days, from_date: from, to_date: to, reason });
+    toast(`Request ${r.id} submitted`);
+    navigate('my-leaves');
+  } catch(e) { toast(e.message,'error'); }
+}
+
+// ─── My leaves ────────────────────────────────────────────────────────────────
+async function vMyLeaves(el) {
+  const reqs = await GET('/leave-requests');
+  el.innerHTML = `<div class="sh"><div class="st">My leave requests</div>
+    <button class="btn btn-primary" onclick="navigate('apply-leave')">+ New request</button></div>
+  <div class="tbl-wrap"><table>
+    <tr><th>ID</th><th>Type</th><th>Dates</th><th>Days</th><th>Status</th><th>Chain</th><th></th></tr>
+    ${reqs.length ? reqs.map(r=>`<tr>
+      <td style="font-family:monospace;font-size:11px">${r.id}</td>
+      <td>${r.type_name}</td>
+      <td style="font-size:11px">${r.from_date}→${r.to_date}</td>
+      <td>${r.days}d</td>
+      <td>${statusPill(r.status)}</td>
+      <td>${miniChain(r.approvals)}</td>
+      <td><button class="btn" style="font-size:11px;padding:3px 8px" onclick="showLeaveDetail(${JSON.stringify(r).replace(/"/g,'&quot;')})">View</button></td>
+    </tr>`).join('') : '<tr><td colspan="7" style="text-align:center;color:var(--txt2);padding:20px">No requests yet.</td></tr>'}
+  </table></div>`;
+}
+
+// ─── Calendar ─────────────────────────────────────────────────────────────────
+async function vCalendar(el) {
+  const today = new Date();
+  const year = today.getFullYear(), month = today.getMonth();
+  const firstDay = new Date(year, month, 1).getDay();
+  const daysInMonth = new Date(year, month + 1, 0).getDate();
+  const months = ['January','February','March','April','May','June','July','August','September','October','November','December'];
+  const dnms = ['Su','Mo','Tu','We','Th','Fr','Sa'].map(d=>`<div style="font-size:10px;font-weight:600;color:var(--txt3);text-align:center;padding-bottom:4px">${d}</div>`).join('');
+  let cells = '';
+  for(let i=0;i<firstDay;i++) cells+=`<div></div>`;
+  for(let d=1;d<=daysInMonth;d++){
+    const dow=(firstDay+d-1)%7;
+    const isWeekend=dow===0||dow===6;
+    const isToday=d===today.getDate();
+    let cls='cal-day';
+    if(isWeekend) cls+=' cal-weekend';
+    else cls+=' cal-worked';
+    if(isToday) cls+=' cal-today';
+    cells+=`<div class="${cls}">${d}</div>`;
+  }
+  el.innerHTML=`<div class="card" style="max-width:400px">
+    <div class="card-title" style="margin-bottom:14px">${months[month]} ${year}</div>
+    <div class="cal-grid">${dnms}${cells}</div>
+    <div class="cal-legend">
+      <div class="cl-item"><div class="cl-dot" style="background:#bbf7d0"></div>Worked</div>
+      <div class="cl-item"><div class="cl-dot" style="background:var(--red-lt)"></div>Leave</div>
+      <div class="cl-item"><div class="cl-dot" style="background:var(--bg)"></div>Weekend</div>
+    </div>
+  </div>`;
+}
+
+// ─── Manager dashboard ────────────────────────────────────────────────────────
+async function vMgrDash(el) {
+  const [summary, reqs] = await Promise.all([GET('/activity/today-summary'), GET('/leave-requests')]);
+  const online = summary.filter(e => e.first_login).length;
+  const pending = reqs.filter(r => r.status === 'pending_manager').length;
+  el.innerHTML = `
+  <div class="metrics-row">
+    <div class="metric"><div class="metric-label">Team size</div><div class="metric-value">${summary.length}</div></div>
+    <div class="metric"><div class="metric-label">Logged in today</div><div class="metric-value" style="color:var(--grn)">${online}</div></div>
+    <div class="metric"><div class="metric-label">Pending approvals</div><div class="metric-value" style="color:var(--amb)">${pending}</div></div>
+    <div class="metric"><div class="metric-label">Leave requests</div><div class="metric-value">${reqs.length}</div></div>
+  </div>
+  <div class="card"><div class="card-title">Team today</div>
+    ${summary.slice(0,8).map(e=>`<div style="display:flex;align-items:center;gap:8px;padding:7px 0;border-bottom:1px solid var(--bdr)">
+      ${avDiv(e,26)}<div style="flex:1;font-size:12px">${e.name}</div>
+      <span class="pill ${e.first_login?'pill-green':'pill-gray'}">${e.first_login?'Logged in':'Not seen'}</span>
+      <div style="font-size:11px;color:var(--txt3)">${e.first_login?e.first_login.slice(11,16):''}</div>
+    </div>`).join('')}
+  </div>`;
+}
+
+// ─── Team activity ────────────────────────────────────────────────────────────
+async function vTeamActivity(el) {
+  const summary = await GET('/activity/today-summary');
+  el.innerHTML = `<div class="info-box">Activity synced from Entra ID sign-in logs.</div>
+  <div class="tbl-wrap"><table>
+    <tr><th>Employee</th><th>Dept</th><th>First login</th><th>Last logout</th><th>Status</th></tr>
+    ${summary.map(e=>`<tr>
+      <td><div style="display:flex;align-items:center;gap:7px">${avDiv(e,24)}${e.name}</div></td>
+      <td>${e.dept||'—'}</td>
+      <td style="font-family:monospace;font-size:11px">${e.first_login?e.first_login.slice(11,16):'—'}</td>
+      <td style="font-family:monospace;font-size:11px">${e.last_logout?e.last_logout.slice(11,16):'—'}</td>
+      <td><span class="pill ${e.first_login?'pill-green':'pill-gray'}">${e.first_login?'Active':'Offline'}</span></td>
+    </tr>`).join('')}
+  </table></div>`;
+}
+
+// ─── Approvals ────────────────────────────────────────────────────────────────
+async function vApprovals(el) {
+  const statusFilter = me.role === 'director' ? 'pending_director' : me.role === 'manager' ? 'pending_manager' : '';
+  const reqs = await GET('/leave-requests' + (statusFilter ? '?status=' + statusFilter : ''));
+  const pending = reqs.filter(r => r.status !== 'approved' && r.status !== 'rejected');
+  el.innerHTML = `<div class="info-box">All decisions are timestamped and logged in the audit trail.</div>
+  <div class="tbl-wrap"><table>
+    <tr><th>ID</th><th>Employee</th><th>Type</th><th>Dates</th><th>Days</th><th>Chain</th><th>Actions</th></tr>
+    ${pending.length ? pending.map(r=>`<tr>
+      <td style="font-family:monospace;font-size:11px">${r.id}</td>
+      <td>${r.emp_name}</td><td>${r.type_name}</td>
+      <td style="font-size:11px">${r.from_date}→${r.to_date}</td>
+      <td>${r.days}d</td>
+      <td>${miniChain(r.approvals)}</td>
+      <td style="display:flex;gap:4px">
+        <button class="btn btn-success" style="font-size:11px;padding:3px 8px" onclick="handleApproval('${r.id}','approve')">Approve</button>
+        <button class="btn btn-danger" style="font-size:11px;padding:3px 8px" onclick="handleApproval('${r.id}','reject')">Reject</button>
+      </td>
+    </tr>`).join('') : '<tr><td colspan="7" style="text-align:center;color:var(--txt2);padding:20px">No pending approvals.</td></tr>'}
+  </table></div>`;
+}
+function handleApproval(id, action) {
+  const isApprove = action === 'approve';
+  showModal(isApprove ? `Approve ${id}` : `Reject ${id}`,`
+  <div class="fg-group full" style="margin-bottom:14px"><label>${isApprove?'Comment (optional)':'Reason (required)'}</label>
+    <textarea id="ap-comment" placeholder="${isApprove?'Optional comment…':'Provide a reason…'}"></textarea></div>
+  <div class="mactions">
+    <button class="btn" onclick="closeModal()">Cancel</button>
+    <button class="btn ${isApprove?'btn-success':'btn-danger'}" onclick="confirmApproval('${id}','${action}')">Confirm ${action}</button>
+  </div>`);
+}
+async function confirmApproval(id, action) {
+  const comment = document.getElementById('ap-comment')?.value;
+  try {
+    await POST(`/leave-requests/${id}/${action}`, { comment, reason: comment });
+    closeModal(); toast(`Request ${id} ${action}d`);
+    navigate(view);
+  } catch(e) { toast(e.message, 'error'); }
+}
+
+// ─── HR dashboard ─────────────────────────────────────────────────────────────
+async function vHRDash(el) {
+  const [emps, reqs, bals] = await Promise.all([GET('/employees'), GET('/leave-requests'), GET('/leave-balances')]);
+  const pending = reqs.filter(r => r.status !== 'approved' && r.status !== 'rejected').length;
+  el.innerHTML = `
+  <div class="metrics-row">
+    <div class="metric"><div class="metric-label">Total employees</div><div class="metric-value">${emps.length}</div></div>
+    <div class="metric"><div class="metric-label">Leave requests</div><div class="metric-value">${reqs.length}</div></div>
+    <div class="metric"><div class="metric-label">Pending action</div><div class="metric-value" style="color:var(--amb)">${pending}</div></div>
+    <div class="metric"><div class="metric-label">Approved YTD</div><div class="metric-value">${reqs.filter(r=>r.status==='approved').length}</div></div>
+  </div>
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px">
+    <div class="card"><div class="card-title">Leave by type</div>
+      <div style="position:relative;height:220px"><canvas id="c-lt"></canvas></div></div>
+    <div class="card"><div class="card-title">Request status breakdown</div>
+      <div style="position:relative;height:220px"><canvas id="c-st"></canvas></div></div>
+  </div>`;
+  const byType = {}; reqs.forEach(r => { byType[r.type_name] = (byType[r.type_name]||0)+1; });
+  chartCache.lt = new Chart(document.getElementById('c-lt'),{type:'doughnut',data:{labels:Object.keys(byType),datasets:[{data:Object.values(byType),backgroundColor:['#3b82f6','#22c55e','#ef4444','#a855f7','#9ca3af','#f59e0b'],borderWidth:0}]},options:{responsive:true,maintainAspectRatio:false,cutout:'55%',plugins:{legend:{position:'right',labels:{font:{size:11},boxWidth:10}}}}});
+  const statuses = {approved:0,rejected:0,pending:0};
+  reqs.forEach(r => { if(r.status==='approved') statuses.approved++; else if(r.status==='rejected') statuses.rejected++; else statuses.pending++; });
+  chartCache.st = new Chart(document.getElementById('c-st'),{type:'bar',data:{labels:['Approved','Rejected','Pending'],datasets:[{data:[statuses.approved,statuses.rejected,statuses.pending],backgroundColor:['#22c55e','#ef4444','#f59e0b'],borderWidth:0,borderRadius:4}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{y:{beginAtZero:true,grid:{color:'rgba(0,0,0,0.04)'},ticks:{font:{size:11}}},x:{grid:{display:false},ticks:{font:{size:11}}}}}});
+}
+
+// ─── All leaves ───────────────────────────────────────────────────────────────
+async function vAllLeaves(el) {
+  const reqs = await GET('/leave-requests');
+  el.innerHTML = `<div class="sh"><div class="st">All leave requests (${reqs.length})</div>
+    <button class="btn">Export CSV</button></div>
+  <div class="tbl-wrap"><table>
+    <tr><th>ID</th><th>Employee</th><th>Type</th><th>Dates</th><th>Days</th><th>Chain</th><th>Status</th><th></th></tr>
+    ${reqs.map(r=>`<tr>
+      <td style="font-family:monospace;font-size:11px">${r.id}</td>
+      <td>${r.emp_name}</td><td>${r.type_name}</td>
+      <td style="font-size:11px">${r.from_date}→${r.to_date}</td>
+      <td>${r.days}d</td>
+      <td>${miniChain(r.approvals)}</td>
+      <td>${statusPill(r.status)}</td>
+      <td><button class="btn" style="font-size:11px;padding:3px 8px" onclick="showLeaveDetail(${JSON.stringify(r).replace(/"/g,'&quot;')})">Details</button></td>
+    </tr>`).join('')}
+  </table></div>`;
+}
+
+function showLeaveDetail(r) {
+  if (typeof r === 'string') r = JSON.parse(r);
+  const ch = (r.approvals||[]).map((a,i)=>{
+    const cls=a.status==='done'?'ap-done':a.status==='pending'?'ap-pending':a.status==='rejected'?'ap-rejected':'ap-waiting';
+    const icon=a.status==='done'?'✓':a.status==='rejected'?'✕':(i+1);
+    return `<div class="ap-step"><div class="ap-dot ${cls}">${icon}</div><div class="ap-label">${a.role}<br>${a.approver_name||''}</div></div>${i<r.approvals.length-1?'<div class="ap-arr"></div>':''}`;
+  }).join('');
+  showModal(`Leave request ${r.id}`,`
+  <div class="fg" style="margin-bottom:14px">
+    <div><div style="font-size:11px;color:var(--txt2)">Employee</div><div style="font-weight:600">${r.emp_name}</div></div>
+    <div><div style="font-size:11px;color:var(--txt2)">Type</div><div>${r.type_name}</div></div>
+    <div><div style="font-size:11px;color:var(--txt2)">From</div><div>${r.from_date}</div></div>
+    <div><div style="font-size:11px;color:var(--txt2)">To / Days</div><div>${r.to_date} · ${r.days}d</div></div>
+    <div class="full"><div style="font-size:11px;color:var(--txt2)">Reason</div><div style="color:var(--txt2)">${r.reason||'—'}</div></div>
+  </div>
+  <div style="font-size:12px;font-weight:600;color:var(--txt2);margin-bottom:8px">Approval chain</div>
+  <div class="ap-chain">${ch}</div>
+  <div style="margin-top:10px;display:flex;gap:8px;align-items:center"><span style="font-size:12px;color:var(--txt2)">Status:</span>${statusPill(r.status)}</div>
+  <div class="mactions"><button class="btn btn-primary" onclick="closeModal()">Close</button></div>`);
+}
+
+// ─── Leave types ──────────────────────────────────────────────────────────────
+async function vLeaveTypes(el) {
+  const lts = await GET('/leave-types');
+  el.innerHTML = `<div class="sh"><div class="st">Leave types</div>
+    <button class="btn btn-primary" onclick="openLeaveTypeModal()">+ Add type</button></div>
+  <div class="tbl-wrap"><table>
+    <tr><th></th><th>Name</th><th>Days/yr</th><th>Approval levels</th><th>Carry over</th><th>Document</th><th></th></tr>
+    ${lts.map(lt=>`<tr>
+      <td><div style="width:10px;height:10px;border-radius:50%;background:${lt.color}"></div></td>
+      <td style="font-weight:600">${lt.name}</td><td>${lt.days_per_year}d</td>
+      <td><span class="pill pill-blue">${lt.approval_levels} levels</span></td>
+      <td>${lt.carry_over === 'yes' ? `Yes (max ${lt.carry_over_max}d)` : 'No'}</td>
+      <td>${lt.doc_required?'<span class="pill pill-amber">Required</span>':'<span class="pill pill-gray">Optional</span>'}</td>
+      <td><button class="btn" style="font-size:11px;padding:3px 8px" onclick="openLeaveTypeModal(${JSON.stringify(lt).replace(/"/g,'&quot;')})">Edit</button></td>
+    </tr>`).join('')}
+  </table></div>`;
+}
+function openLeaveTypeModal(lt) {
+  const isEdit = !!lt;
+  showModal(isEdit ? `Edit: ${lt.name}` : 'Add leave type',`
+  <div class="fg">
+    <div class="fg-group full"><label>Name</label><input type="text" id="lt-name" value="${isEdit?lt.name:''}"></div>
+    <div class="fg-group"><label>Days per year</label><input type="number" id="lt-dpy" value="${isEdit?lt.days_per_year:14}"></div>
+    <div class="fg-group"><label>Approval levels</label><select id="lt-lvl"><option value="2"${!isEdit||lt.approval_levels==2?' selected':''}>2 levels (Manager + HR)</option><option value="3"${isEdit&&lt.approval_levels==3?' selected':''}>3 levels (+ Director)</option></select></div>
+    <div class="fg-group"><label>Carry over</label><select id="lt-co"><option value="no"${!isEdit||lt.carry_over==='no'?' selected':''}>No</option><option value="yes"${isEdit&&lt.carry_over==='yes'?' selected':''}>Yes</option></select></div>
+    <div class="fg-group"><label>Max carry-over days</label><input type="number" id="lt-com" value="${isEdit?lt.carry_over_max:0}"></div>
+    <div class="fg-group"><label>Document required</label><select id="lt-doc"><option value="0"${!isEdit||!lt.doc_required?' selected':''}>Optional</option><option value="1"${isEdit&&lt.doc_required?' selected':''}>Required</option></select></div>
+    <div class="fg-group full"><label>Colour hex</label><input type="text" id="lt-color" value="${isEdit?lt.color:'#0078d4'}"></div>
+  </div>
+  <div class="mactions">
+    ${isEdit?`<button class="btn btn-danger" onclick="deleteLeaveType(${lt.id})">Delete</button>`:''}
+    <button class="btn" onclick="closeModal()">Cancel</button>
+    <button class="btn btn-primary" onclick="saveLeaveType(${isEdit?lt.id:'null'})">Save</button>
+  </div>`);
+}
+async function saveLeaveType(id) {
+  const data = { name:v('lt-name'), days_per_year:parseInt(v('lt-dpy')), approval_levels:parseInt(v('lt-lvl')), carry_over:v('lt-co'), carry_over_max:parseInt(v('lt-com')||0), doc_required:v('lt-doc')==='1', color:v('lt-color') };
+  if (id !== null) data.id = id;
+  try {
+    if (id !== null) await PUT(`/leave-types/${id}`, data);
+    else await POST('/leave-types', data);
+    closeModal(); toast('Leave type saved'); navigate('leave-types');
+  } catch(e) { toast(e.message,'error'); }
+}
+async function deleteLeaveType(id) {
+  if (!confirm('Deactivate this leave type?')) return;
+  try { await api('DELETE',`/leave-types/${id}`); closeModal(); toast('Leave type removed'); navigate('leave-types'); }
+  catch(e) { toast(e.message,'error'); }
+}
+
+// ─── Approval rules ───────────────────────────────────────────────────────────
+async function vApprovalRules(el) {
+  const s = await GET('/settings');
+  el.innerHTML = `<div class="info-box">Minimum 2 approval levels enforced system-wide. Changes here apply to all new requests.</div>
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:16px">
+    <div class="card"><div class="card-title">Level 1 — Line manager</div>
+      <div class="fg">
+        <div class="fg-group full"><label>Approver role</label><select id="al1-role"><option value="line_manager"${s.approval_l1_role==='line_manager'?' selected':''}>Direct line manager</option><option value="dept_head"${s.approval_l1_role==='dept_head'?' selected':''}>Dept head</option></select></div>
+        <div class="fg-group full"><label>SLA (business days)</label><input type="number" id="al1-sla" value="${s.approval_l1_sla||1}" min="1" max="5"></div>
+        <div class="fg-group full"><label>If no response</label><select id="al1-esc"><option value="hr"${s.approval_l1_escalate==='hr'?' selected':''}>Auto-escalate to HR</option><option value="pending"${s.approval_l1_escalate==='pending'?' selected':''}>Leave pending</option></select></div>
+      </div>
+    </div>
+    <div class="card"><div class="card-title">Level 2 — HR Admin</div>
+      <div class="fg">
+        <div class="fg-group full"><label>Approver role</label><select id="al2-role"><option value="hr_admin">HR Administrator</option><option value="any_hr">Any HR team member</option></select></div>
+        <div class="fg-group full"><label>SLA (business days)</label><input type="number" id="al2-sla" value="${s.approval_l2_sla||1}" min="1" max="5"></div>
+        <div class="fg-group full"><label>HR emergency bypass</label><select id="al2-bypass"><option value="yes"${s.approval_l2_bypass==='yes'?' selected':''}>Yes – with audit trail</option><option value="no"${s.approval_l2_bypass==='no'?' selected':''}>No</option></select></div>
+      </div>
+    </div>
+  </div>
+  <div class="card">
+    <div class="card-title">Level 3 — Director (conditional)</div>
+    <div class="fg">
+      <div class="fg-group"><label>Trigger: request exceeds (days)</label><input type="number" id="al3-days" value="${s.approval_l3_threshold_days||5}" min="1"></div>
+      <div class="fg-group"><label>SLA (business days)</label><input type="number" id="al3-sla" value="${s.approval_l3_sla||2}" min="1"></div>
+      <div class="fg-group full"><label>Approver</label><select id="al3-role"><option value="director">C-Level / Director</option><option value="ceo">CEO only</option></select></div>
+    </div>
+  </div>`;
+  showSaveBtn(async () => {
+    await POST('/settings', { approval_l1_role:v('al1-role'), approval_l1_sla:v('al1-sla'), approval_l1_escalate:v('al1-esc'), approval_l2_sla:v('al2-sla'), approval_l2_bypass:v('al2-bypass'), approval_l3_threshold_days:v('al3-days'), approval_l3_sla:v('al3-sla'), approval_l3_role:v('al3-role') });
+  });
+}
+
+// ─── Calendars ────────────────────────────────────────────────────────────────
+async function vCalendars(el) {
+  const cals = await GET('/calendars');
+  el.innerHTML = `<div class="sh"><div class="st">Work calendars</div>
+    <button class="btn btn-primary" onclick="openCalModal()">+ Add calendar</button></div>
+  ${cals.map(c=>`<div class="card" style="margin-bottom:12px">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">
+      <div style="display:flex;align-items:center;gap:10px">
+        <div style="width:36px;height:36px;border-radius:8px;background:${c.color}18;border:2px solid ${c.color};display:flex;align-items:center;justify-content:center"><div style="width:10px;height:10px;border-radius:2px;background:${c.color}"></div></div>
+        <div><div style="font-size:14px;font-weight:700">${c.name}</div><div style="font-size:12px;color:var(--txt2)">${c.timezone}</div></div>
+      </div>
+      <div style="display:flex;gap:6px"><button class="btn" style="font-size:11px;padding:3px 8px" onclick="openCalModal(${JSON.stringify(c).replace(/"/g,'&quot;')})">Edit</button></div>
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;font-size:12px;margin-bottom:10px">
+      <div><span style="color:var(--txt3)">Weekend:</span> <strong>${c.weekends}</strong></div>
+      <div><span style="color:var(--txt3)">Holidays:</span> <strong>${c.holidays.length} configured</strong></div>
+    </div>
+    <div style="display:flex;flex-wrap:wrap;gap:4px">${c.holidays.map(h=>`<span class="pill pill-gray">${h}</span>`).join('')}</div>
+  </div>`).join('')}`;
+}
+function openCalModal(cal) {
+  const isEdit = !!cal;
+  showModal(isEdit ? `Edit: ${cal.name}` : 'Add work calendar',`
+  <div class="fg">
+    <div class="fg-group full"><label>Calendar name</label><input type="text" id="cal-name" value="${isEdit?cal.name:''}"></div>
+    <div class="fg-group"><label>Timezone</label><input type="text" id="cal-tz" value="${isEdit?cal.timezone:'UTC'}"></div>
+    <div class="fg-group"><label>Weekend days</label><select id="cal-wk"><option value="Sat-Sun"${!isEdit||cal.weekends==='Sat-Sun'?' selected':''}>Sat–Sun</option><option value="Fri-Sat"${isEdit&&cal.weekends==='Fri-Sat'?' selected':''}>Fri–Sat</option><option value="Fri"${isEdit&&cal.weekends==='Fri'?' selected':''}>Fri only</option></select></div>
+    <div class="fg-group"><label>Colour hex</label><input type="text" id="cal-color" value="${isEdit?cal.color:'#0078d4'}"></div>
+    <div class="fg-group full"><label>Public holidays (comma-separated)</label><input type="text" id="cal-hols" value="${isEdit?cal.holidays.join(', '):''}"></div>
+  </div>
+  <div class="mactions">
+    ${isEdit?`<button class="btn btn-danger" onclick="deleteCal('${cal.id}')">Delete</button>`:''}
+    <button class="btn" onclick="closeModal()">Cancel</button>
+    <button class="btn btn-primary" onclick="saveCal('${isEdit?cal.id:''}')">Save</button>
+  </div>`);
+}
+async function saveCal(id) {
+  const holidays = v('cal-hols').split(',').map(s=>s.trim()).filter(Boolean);
+  const data = { name:v('cal-name'), timezone:v('cal-tz'), weekends:v('cal-wk'), color:v('cal-color'), holidays };
+  if (id) data.id = id;
+  try {
+    if (id) await PUT(`/calendars/${id}`, data);
+    else await POST('/calendars', data);
+    closeModal(); toast('Calendar saved'); navigate('calendars');
+  } catch(e) { toast(e.message,'error'); }
+}
+async function deleteCal(id) {
+  if (!confirm('Delete this calendar?')) return;
+  try { await api('DELETE',`/calendars/${id}`); closeModal(); toast('Calendar deleted'); navigate('calendars'); }
+  catch(e) { toast(e.message,'error'); }
+}
+
+// ─── Calendar assignment ──────────────────────────────────────────────────────
+async function vCalAssign(el) {
+  const tab = tabState['cal-assign'] || 'individual';
+  const [emps, cals, depts] = await Promise.all([GET('/employees'), GET('/calendars'), GET('/departments')]);
+  el.innerHTML = `<div class="info-box">Assign employees to work calendars individually, by department, or in bulk.</div>
+  <div class="tab-bar">
+    <div class="tab${tab==='individual'?' active':''}" onclick="setTab('cal-assign','individual')">Individual</div>
+    <div class="tab${tab==='dept'?' active':''}" onclick="setTab('cal-assign','dept')">By department</div>
+    <div class="tab${tab==='bulk'?' active':''}" onclick="setTab('cal-assign','bulk')">Bulk reassign</div>
+  </div>
+  <div id="ca-body"></div>`;
+  if (tab === 'individual') {
+    document.getElementById('ca-body').innerHTML = `<div class="tbl-wrap"><table>
+      <tr><th>Employee</th><th>Department</th><th>Current calendar</th><th>Action</th></tr>
+      ${emps.map(e=>{const cal=cals.find(c=>c.id===e.cal_id)||{};return`<tr>
+        <td><div style="display:flex;align-items:center;gap:7px">${avDiv(e,26)}${e.name}</div></td>
+        <td>${e.dept||'—'}</td>
+        <td><span class="pill" style="background:${cal.color||'#ccc'}18;color:${cal.color||'#666'}">${cal.name||'None'}</span></td>
+        <td><button class="btn" style="font-size:11px;padding:3px 8px" onclick="openAssignModal(${e.id},'${e.name}','${e.cal_id||''}',${JSON.stringify(cals).replace(/"/g,'&quot;')})">Change</button></td>
+      </tr>`}).join('')}
+    </table></div>`;
+  } else if (tab === 'dept') {
+    document.getElementById('ca-body').innerHTML = `<div class="tbl-wrap"><table>
+      <tr><th>Department</th><th>Employees</th><th>Default calendar</th><th>Action</th></tr>
+      ${depts.map(d=>{const cal=cals.find(c=>c.id===d.cal_id)||{};return`<tr>
+        <td style="font-weight:600">${d.name}</td><td>—</td>
+        <td><span class="pill" style="background:${cal.color||'#ccc'}18;color:${cal.color||'#666'}">${cal.name||'None'}</span></td>
+        <td><button class="btn" style="font-size:11px;padding:3px 8px" onclick="openDeptAssignModal('${d.name}',${JSON.stringify(cals).replace(/"/g,'&quot;')})">Assign</button></td>
+      </tr>`}).join('')}
+    </table></div>`;
+  } else {
+    const calOpts = cals.map(c=>`<option value="${c.id}">${c.name}</option>`).join('');
+    const deptOpts = ['All departments',...depts.map(d=>d.name)].map(d=>`<option>${d}</option>`).join('');
+    document.getElementById('ca-body').innerHTML = `<div class="card">
+      <div class="fg">
+        <div class="fg-group"><label>From calendar</label><select id="bulk-from">${calOpts}</select></div>
+        <div class="fg-group"><label>To calendar</label><select id="bulk-to">${calOpts}</select></div>
+        <div class="fg-group"><label>Department filter</label><select id="bulk-dept">${deptOpts}</select></div>
+        <div class="fg-group"><label>Effective date</label><input type="date" id="bulk-date" value="${new Date().toISOString().slice(0,10)}"></div>
+        <div class="fg-group full"><label>Reason</label><input type="text" id="bulk-reason" placeholder="Reason for bulk reassignment…"></div>
+      </div>
+      <div style="display:flex;justify-content:flex-end;margin-top:14px">
+        <button class="btn btn-primary" onclick="doBulkAssign(${JSON.stringify(depts).replace(/"/g,'&quot;')})">Preview & apply</button>
+      </div>
+    </div>`;
+  }
+}
+function setTab(viewId, tab) { tabState[viewId] = tab; navigate(viewId); }
+function openAssignModal(empId, empName, currentCalId, cals) {
+  showModal(`Assign calendar: ${empName}`,`
+  <div class="fg">
+    <div class="fg-group full"><label>Assign to calendar</label>
+      <select id="asgn-cal">${cals.map(c=>`<option value="${c.id}"${c.id===currentCalId?' selected':''}>${c.name} — ${c.timezone}</option>`).join('')}</select></div>
+    <div class="fg-group full"><label>Effective from</label><input type="date" value="${new Date().toISOString().slice(0,10)}"></div>
+  </div>
+  <div class="mactions"><button class="btn" onclick="closeModal()">Cancel</button>
+    <button class="btn btn-primary" onclick="doAssignCal(${empId})">Save</button></div>`);
+}
+async function doAssignCal(empId) {
+  const calId = v('asgn-cal');
+  try { await POST(`/employees/${empId}/calendar`, { cal_id: calId }); closeModal(); toast('Calendar assigned'); navigate('cal-assign'); }
+  catch(e) { toast(e.message,'error'); }
+}
+function openDeptAssignModal(dept, cals) {
+  showModal(`Assign calendar: ${dept}`,`
+  <div class="fg">
+    <div class="fg-group full"><label>Assign all employees in ${dept} to</label>
+      <select id="da-cal">${cals.map(c=>`<option value="${c.id}">${c.name}</option>`).join('')}</select></div>
+    <div class="fg-group full"><label>Effective date</label><input type="date" value="${new Date().toISOString().slice(0,10)}"></div>
+    <div class="fg-group full"><label>Individual overrides</label><select id="da-ov"><option value="keep">Keep existing overrides</option><option value="override">Override all uniformly</option></select></div>
+  </div>
+  <div class="mactions"><button class="btn" onclick="closeModal()">Cancel</button>
+    <button class="btn btn-primary" onclick="doDeptAssign('${dept}')">Apply to department</button></div>`);
+}
+async function doDeptAssign(dept) {
+  const calId = v('da-cal'), override = v('da-ov') === 'override';
+  try { const r = await POST('/employees/bulk-calendar',{dept,cal_id:calId,override}); closeModal(); toast(`Calendar assigned to ${r.count} employees`); navigate('cal-assign'); }
+  catch(e) { toast(e.message,'error'); }
+}
+async function doBulkAssign() {
+  const dept = v('bulk-dept');
+  const calId = v('bulk-to');
+  if (!calId) { toast('Select a target calendar','error'); return; }
+  const deptFilter = dept === 'All departments' ? null : dept;
+  try {
+    if (deptFilter) { const r = await POST('/employees/bulk-calendar',{dept:deptFilter,cal_id:calId,override:false}); toast(`Reassigned ${r.count} employees`); }
+    else { toast('Bulk all-dept reassign not supported — use dept tab','error'); return; }
+    navigate('cal-assign');
+  } catch(e) { toast(e.message,'error'); }
+}
+
+// ─── Leave balance engine ─────────────────────────────────────────────────────
+async function vLeaveBalance(el) {
+  const tab = tabState['leave-balance'] || 'policy';
+  el.innerHTML = `<div class="info-box">Two balance models can run simultaneously. Changes here affect all employees.</div>
+  <div class="tab-bar">
+    <div class="tab${tab==='policy'?' active':''}" onclick="setTab('leave-balance','policy')">Balance policy</div>
+    <div class="tab${tab==='balances'?' active':''}" onclick="setTab('leave-balance','balances')">Employee balances</div>
+    <div class="tab${tab==='sim'?' active':''}" onclick="setTab('leave-balance','sim')">Accrual simulator</div>
+  </div>
+  <div id="lb-body"></div>`;
+  if (tab === 'policy') {
+    const s = await GET('/settings');
+    document.getElementById('lb-body').innerHTML = `<div style="display:grid;grid-template-columns:1fr 1fr;gap:16px">
+      <div class="card">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
+          <div class="card-title" style="margin-bottom:0">Fixed annual grant</div>${mkToggle(true,'tog-fixed')}</div>
+        <div class="fg">
+          <div class="fg-group full"><label>Days granted on Jan 1</label><input type="number" id="s-fdays" value="${s.fixed_annual_days||24}"></div>
+          <div class="fg-group"><label>Carry-over cap (days)</label><input type="number" id="s-fco" value="${s.fixed_carry_over_cap||5}"></div>
+          <div class="fg-group"><label>Pro-rata new joiners</label><select id="s-fpro"><option value="yes">Yes – prorate</option><option value="no">No – full balance</option></select></div>
+        </div>
+      </div>
+      <div class="card">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
+          <div class="card-title" style="margin-bottom:0">Monthly accrual model</div>${mkToggle(true,'tog-accrual')}</div>
+        <div class="fg">
+          <div class="fg-group"><label>Days accrued per month</label><input type="number" id="s-arate" value="${s.accrual_days_per_month||2}"></div>
+          <div class="fg-group"><label>Max accrual cap (days)</label><input type="number" id="s-acap" value="${s.accrual_max_cap||30}"></div>
+          <div class="fg-group full"><label>Credit date</label><select id="s-acredit"><option value="last_day"${s.accrual_credit_date==='last_day'?' selected':''}>Last day of month</option><option value="first_next"${s.accrual_credit_date==='first_next'?' selected':''}>1st of next month</option></select></div>
+        </div>
+      </div>
+    </div>
+    <div style="display:flex;gap:8px;margin-top:16px">
+      <button class="btn btn-primary" onclick="saveLBPolicy()">Save balance policy</button>
+      <button class="btn" onclick="runAccrual()">Run monthly accrual now</button>
+    </div>`;
+  } else if (tab === 'balances') {
+    const bals = await GET('/leave-balances');
+    document.getElementById('lb-body').innerHTML = `<div class="sh"><div class="st">Employee balances — ${new Date().getFullYear()}</div>
+      <button class="btn" onclick="openAdjustModal()">+ Manual adjustment</button></div>
+    <div class="tbl-wrap"><table>
+      <tr><th>Employee</th><th>Policy</th><th>Entitled</th><th>Accrued</th><th>Adj.</th><th>Used</th><th>Balance</th><th>Visual</th></tr>
+      ${bals.map(b=>{const bal=((b.accrued||0)+(b.adjustment||0))-(b.used||0);const pct=Math.min(100,Math.round(bal/(b.entitled||24)*100));return`<tr>
+        <td><div style="display:flex;align-items:center;gap:7px">${avDiv(b,22)}${b.emp_name}</div></td>
+        <td><span class="pill ${b.bal_type==='fixed'?'pill-blue':'pill-purple'}">${b.bal_type==='fixed'?'Fixed':'Accrual'}</span></td>
+        <td>${b.entitled||0}d</td><td>${b.accrued||0}d</td><td>${b.adjustment>=0?'+':''}${b.adjustment||0}d</td><td>${b.used||0}d</td>
+        <td><strong>${bal.toFixed(1)}d</strong></td>
+        <td style="width:80px"><div class="bal-bar"><div class="bal-fill" style="width:${pct}%;background:${pct>60?'#0078d4':pct>25?'#f59e0b':'#ef4444'}"></div></div></td>
+      </tr>`}).join('')}
+    </table></div>`;
+  } else {
+    document.getElementById('lb-body').innerHTML = `<div class="card">
+      <div class="card-title" style="margin-bottom:4px">Accrual simulator</div>
+      <div class="fg" style="margin-bottom:16px">
+        <div class="fg-group"><label>Days/month</label><input type="number" id="sr" value="2" min="1" max="5" oninput="updateSim()"></div>
+        <div class="fg-group"><label>Planned leave (days)</label><input type="number" id="sp" value="5" min="0" oninput="updateSim()"></div>
+        <div class="fg-group full"><label>Leave taken in month</label><select id="sm" onchange="updateSim()">${['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'].map((m,i)=>`<option value="${i}"${i===3?' selected':''}>${m}</option>`).join('')}</select></div>
+      </div>
+      <div style="position:relative;height:220px"><canvas id="sim-ch"></canvas></div>
+    </div>`;
+    updateSim();
+  }
+}
+async function saveLBPolicy() {
+  await POST('/settings', { fixed_annual_days:v('s-fdays'), fixed_carry_over_cap:v('s-fco'), accrual_days_per_month:v('s-arate'), accrual_max_cap:v('s-acap'), accrual_credit_date:v('s-acredit') });
+  toast('Balance policy saved');
+}
+async function runAccrual() {
+  try { const r = await POST('/leave-balances/accrue'); toast(`Accrual applied to ${r.count} employees`); navigate('leave-balance'); }
+  catch(e) { toast(e.message,'error'); }
+}
+function openAdjustModal() {
+  showModal('Manual balance adjustment',`
+  <div class="fg">
+    <div class="fg-group full"><label>Employee ID</label><input type="number" id="adj-emp" placeholder="Employee ID"></div>
+    <div class="fg-group"><label>Adjustment (days, can be negative)</label><input type="number" id="adj-days" value="0"></div>
+    <div class="fg-group"><label>Leave type ID</label><input type="number" id="adj-lt" value="1"></div>
+    <div class="fg-group full"><label>Reason</label><input type="text" id="adj-reason" placeholder="Reason for adjustment"></div>
+  </div>
+  <div class="mactions"><button class="btn" onclick="closeModal()">Cancel</button>
+    <button class="btn btn-primary" onclick="doAdjust()">Apply adjustment</button></div>`);
+}
+async function doAdjust() {
+  try { await POST('/leave-balances/adjust',{employee_id:parseInt(v('adj-emp')),leave_type_id:parseInt(v('adj-lt')),year:new Date().getFullYear(),adjustment:parseFloat(v('adj-days')),reason:v('adj-reason')}); closeModal(); toast('Balance adjusted'); navigate('leave-balance'); }
+  catch(e) { toast(e.message,'error'); }
+}
+function updateSim() {
+  const rate=parseInt(document.getElementById('sr')?.value||2);
+  const planned=parseInt(document.getElementById('sp')?.value||5);
+  const lm=parseInt(document.getElementById('sm')?.value||3);
+  const months=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+  let bal=0;const data=[];
+  for(let m=0;m<12;m++){bal+=rate;if(m===lm)bal=Math.max(0,bal-planned);data.push(bal);}
+  const ctx=document.getElementById('sim-ch'); if(!ctx) return;
+  if(chartCache.sim){try{chartCache.sim.destroy();}catch{}}
+  chartCache.sim=new Chart(ctx,{type:'line',data:{labels:months,datasets:[{label:'Balance',data,borderColor:'#3b82f6',backgroundColor:'rgba(59,130,246,0.08)',fill:true,tension:0.4,pointRadius:3},{label:'Leave',data:months.map((_,i)=>i===lm?planned:null),type:'bar',backgroundColor:'rgba(239,68,68,0.15)',borderColor:'#ef4444',borderWidth:1.5,borderRadius:3}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{labels:{font:{size:11},boxWidth:10}}},scales:{y:{beginAtZero:true,max:Math.max(30,rate*12+4),grid:{color:'rgba(0,0,0,0.04)'},ticks:{font:{size:11}}},x:{grid:{display:false},ticks:{font:{size:11},autoSkip:false,maxRotation:0}}}}});
+}
+
+// ─── Employees ────────────────────────────────────────────────────────────────
+async function vEmployees(el) {
+  const [emps, cals] = await Promise.all([GET('/employees'), GET('/calendars')]);
+  el.innerHTML = `<div class="sh"><div class="st">Employee directory (${emps.length})</div>
+    <button class="btn btn-primary" onclick="openEmpModal(null,${JSON.stringify(cals).replace(/"/g,'&quot;')})">+ Add employee</button></div>
+  <div class="tbl-wrap"><table>
+    <tr><th>Name</th><th>Dept</th><th>Role</th><th>Calendar</th><th>Balance policy</th><th></th></tr>
+    ${emps.map(e=>{const cal=cals.find(c=>c.id===e.cal_id)||{};return`<tr>
+      <td><div style="display:flex;align-items:center;gap:7px">${avDiv(e,26)}${e.name}</div></td>
+      <td>${e.dept||'—'}</td>
+      <td><span class="pill pill-gray">${e.role}</span></td>
+      <td>${cal.name?`<span class="pill" style="background:${cal.color}18;color:${cal.color}">${cal.name}</span>`:'—'}</td>
+      <td><span class="pill ${e.bal_type==='fixed'?'pill-blue':'pill-purple'}">${e.bal_type==='fixed'?'Fixed':'Accrual'}</span></td>
+      <td><button class="btn" style="font-size:11px;padding:3px 8px" onclick="openEmpModal(${JSON.stringify(e).replace(/"/g,'&quot;')},${JSON.stringify(cals).replace(/"/g,'&quot;')})">Edit</button></td>
+    </tr>`}).join('')}
+  </table></div>`;
+}
+function openEmpModal(emp, cals) {
+  const isEdit = !!emp;
+  showModal(isEdit?`Edit: ${emp.name}`:'Add employee',`
+  <div class="fg">
+    <div class="fg-group full"><label>Full name</label><input type="text" id="em-name" value="${isEdit?emp.name:''}"></div>
+    <div class="fg-group full"><label>Email</label><input type="email" id="em-email" value="${isEdit?emp.email||'':''}"></div>
+    <div class="fg-group"><label>Department</label><input type="text" id="em-dept" value="${isEdit?emp.dept||'':''}"></div>
+    <div class="fg-group"><label>Team</label><input type="text" id="em-team" value="${isEdit?emp.team||'':''}"></div>
+    <div class="fg-group"><label>Job title</label><input type="text" id="em-title" value="${isEdit?emp.title||'':''}"></div>
+    <div class="fg-group"><label>Role</label><select id="em-role"><option value="employee"${!isEdit||emp.role==='employee'?' selected':''}>Employee</option><option value="manager"${isEdit&&emp.role==='manager'?' selected':''}>Manager</option><option value="hr"${isEdit&&emp.role==='hr'?' selected':''}>HR Admin</option><option value="director"${isEdit&&emp.role==='director'?' selected':''}>Director</option></select></div>
+    <div class="fg-group"><label>Work calendar</label><select id="em-cal">${cals.map(c=>`<option value="${c.id}"${isEdit&&emp.cal_id===c.id?' selected':''}>${c.name}</option>`).join('')}</select></div>
+    <div class="fg-group"><label>Balance policy</label><select id="em-bal"><option value="fixed"${!isEdit||emp.bal_type==='fixed'?' selected':''}>Fixed annual</option><option value="accrual"${isEdit&&emp.bal_type==='accrual'?' selected':''}>Monthly accrual</option></select></div>
+    ${!isEdit?`<div class="fg-group full"><label>Initial password</label><input type="password" id="em-pass" placeholder="Set initial password"></div>`:''}
+  </div>
+  <div class="mactions"><button class="btn" onclick="closeModal()">Cancel</button>
+    <button class="btn btn-primary" onclick="saveEmp(${isEdit?emp.id:'null'})">Save</button></div>`);
+}
+async function saveEmp(id) {
+  const data = { name:v('em-name'), email:v('em-email'), dept:v('em-dept'), team:v('em-team'), title:v('em-title'), role:v('em-role'), cal_id:v('em-cal'), bal_type:v('em-bal') };
+  try {
+    if (id !== null) await PUT(`/employees/${id}`, data);
+    else await POST('/employees', data);
+    closeModal(); toast('Employee saved'); navigate('employees');
+  } catch(e) { toast(e.message,'error'); }
+}
+
+// ─── Departments ──────────────────────────────────────────────────────────────
+async function vDepartments(el) {
+  const [depts, cals] = await Promise.all([GET('/departments'), GET('/calendars')]);
+  el.innerHTML = `<div class="sh"><div class="st">Departments & teams</div>
+    <button class="btn btn-primary" onclick="openDeptModal(null,${JSON.stringify(cals).replace(/"/g,'&quot;')})">+ Add department</button></div>
+  <div class="tbl-wrap"><table>
+    <tr><th>Department</th><th>Teams</th><th>Default calendar</th><th></th></tr>
+    ${depts.map(d=>{const cal=cals.find(c=>c.id===d.cal_id)||{};return`<tr>
+      <td style="font-weight:600">${d.name}</td>
+      <td style="font-size:12px;color:var(--txt2)">${d.teams.join(', ')||'—'}</td>
+      <td>${cal.name?`<span class="pill" style="background:${cal.color}18;color:${cal.color}">${cal.name}</span>`:'—'}</td>
+      <td><button class="btn" style="font-size:11px;padding:3px 8px" onclick="openDeptModal(${JSON.stringify(d).replace(/"/g,'&quot;')},${JSON.stringify(cals).replace(/"/g,'&quot;')})">Edit</button></td>
+    </tr>`}).join('')}
+  </table></div>`;
+}
+function openDeptModal(dept, cals) {
+  const isEdit = !!dept;
+  showModal(isEdit?`Edit: ${dept.name}`:'Add department',`
+  <div class="fg">
+    <div class="fg-group full"><label>Department name</label><input type="text" id="dp-name" value="${isEdit?dept.name:''}"></div>
+    <div class="fg-group full"><label>Teams (comma-separated)</label><input type="text" id="dp-teams" value="${isEdit?dept.teams.join(', '):''}"></div>
+    <div class="fg-group full"><label>Default work calendar</label><select id="dp-cal">${cals.map(c=>`<option value="${c.id}"${isEdit&&dept.cal_id===c.id?' selected':''}>${c.name}</option>`).join('')}</select></div>
+  </div>
+  <div class="mactions"><button class="btn" onclick="closeModal()">Cancel</button>
+    <button class="btn btn-primary" onclick="saveDept(${isEdit?dept.id:'null'})">Save</button></div>`);
+}
+async function saveDept(id) {
+  const teams = v('dp-teams').split(',').map(s=>s.trim()).filter(Boolean);
+  const data = { name:v('dp-name'), teams, cal_id:v('dp-cal') };
+  if (id !== null) data.id = id;
+  try { await POST('/departments', data); closeModal(); toast('Department saved'); navigate('departments'); }
+  catch(e) { toast(e.message,'error'); }
+}
+
+// ─── System settings ──────────────────────────────────────────────────────────
+async function vSystem(el) {
+  const s = await GET('/settings');
+  const tog = (key, label) => `<div class="tw" onclick="this.querySelector('.tt').classList.toggle('on')"><div class="tt${s[key]==='1'?' on':''}" id="tog-${key}"><div class="tk"></div></div><span style="font-size:13px;color:var(--txt)">${label}</span></div>`;
+  el.innerHTML = `<div class="info-box">Global system settings. Click "Save settings" in the top bar to apply all changes.</div>
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px">
+    <div class="card"><div class="card-title">General</div>
+      <div class="fg">
+        <div class="fg-group full"><label>Organisation name</label><input type="text" id="s-org" value="${s.org_name||''}"></div>
+        <div class="fg-group"><label>Default timezone</label><select id="s-tz"><option value="Asia/Dubai (UTC+4)"${s.default_timezone?.includes('Dubai')?' selected':''}>Asia/Dubai (UTC+4)</option><option value="UTC"${s.default_timezone==='UTC'?' selected':''}>UTC</option><option value="Europe/London (UTC+0)"${s.default_timezone?.includes('London')?' selected':''}>London (UTC+0)</option></select></div>
+        <div class="fg-group"><label>Working hours/day</label><input type="number" id="s-wh" value="${s.working_hours_day||8}" min="1" max="24"></div>
+        <div class="fg-group full"><label>Leave year reset</label><select id="s-yr"><option value="jan1"${s.leave_year_reset==='jan1'?' selected':''}>1 January each year</option><option value="anniversary"${s.leave_year_reset==='anniversary'?' selected':''}>Employee anniversary</option></select></div>
+      </div>
+    </div>
+    <div class="card"><div class="card-title">Notifications</div>
+      ${tog('notify_employee','Notify employee on status change')}
+      ${tog('notify_manager','Notify manager on new request')}
+      ${tog('monthly_balance_summary','Monthly balance summary to employees')}
+      ${tog('hr_daily_digest','HR daily digest email')}
+      <div class="fg-group" style="margin-top:12px"><label>Approval reminder after (days)</label><input type="number" id="s-ar" value="${s.approval_reminder_days||2}" min="1" max="10"></div>
+    </div>
+    <div class="card"><div class="card-title">Leave request rules</div>
+      <div class="fg">
+        <div class="fg-group"><label>Min notice (days)</label><input type="number" id="s-mn" value="${s.min_notice_days||3}"></div>
+        <div class="fg-group"><label>Max consecutive (before Director)</label><input type="number" id="s-mc" value="${s.max_consecutive_days||5}"></div>
+        <div class="fg-group full"><label>Allow backdated requests (days)</label><input type="number" id="s-bd" value="${s.allow_backdated||7}"></div>
+      </div>
+    </div>
+    <div class="card"><div class="card-title">Data & compliance</div>
+      <div class="fg">
+        <div class="fg-group full"><label>Data retention (years)</label><select id="s-dr"><option value="5"${s.data_retention_years==='5'?' selected':''}>5 years</option><option value="7"${s.data_retention_years==='7'?' selected':''}>7 years</option></select></div>
+        ${tog('gdpr_mode','GDPR / privacy mode')}
+      </div>
+    </div>
+  </div>`;
+  showSaveBtn(async () => {
+    await POST('/settings', {
+      org_name:v('s-org'), default_timezone:v('s-tz'), working_hours_day:v('s-wh'), leave_year_reset:v('s-yr'),
+      approval_reminder_days:v('s-ar'), min_notice_days:v('s-mn'), max_consecutive_days:v('s-mc'), allow_backdated:v('s-bd'),
+      data_retention_years:v('s-dr'),
+      notify_employee: document.getElementById('tog-notify_employee')?.classList.contains('on')?'1':'0',
+      notify_manager: document.getElementById('tog-notify_manager')?.classList.contains('on')?'1':'0',
+      monthly_balance_summary: document.getElementById('tog-monthly_balance_summary')?.classList.contains('on')?'1':'0',
+      hr_daily_digest: document.getElementById('tog-hr_daily_digest')?.classList.contains('on')?'1':'0',
+      gdpr_mode: document.getElementById('tog-gdpr_mode')?.classList.contains('on')?'1':'0',
+    });
+  });
+}
+
+// ─── Entra ID config ──────────────────────────────────────────────────────────
+async function vEntraConfig(el) {
+  const cfg = await GET('/entra/config');
+  const cals = await GET('/calendars');
+  el.innerHTML = `<div class="info-box">Enter your Azure App Registration credentials. The app calls Microsoft Graph API to sync users and sign-in logs. Credentials are stored in the local database.</div>
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px">
+    <div class="card"><div class="card-title">Azure credentials</div>
+      <div class="fg">
+        <div class="fg-group full"><label>Tenant ID</label><input type="text" id="ec-tid" value="${cfg.tenant_id||''}" placeholder="xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"></div>
+        <div class="fg-group full"><label>Client ID (App registration)</label><input type="text" id="ec-cid" value="${cfg.client_id||''}" placeholder="xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"></div>
+        <div class="fg-group full"><label>Client secret</label><input type="password" id="ec-sec" value="${cfg.client_secret||''}" placeholder="Paste client secret value"></div>
+        <div class="fg-group full"><label>Redirect URI</label><input type="text" id="ec-redir" value="${cfg.redirect_uri||`${location.origin}/auth/callback`}"></div>
+      </div>
+      <div style="display:flex;gap:8px;margin-top:14px">
+        <button class="btn btn-primary" onclick="testEntra()">Test connection</button>
+        <button class="btn" onclick="saveEntra()">Save credentials</button>
+      </div>
+    </div>
+    <div class="card"><div class="card-title">Sync settings</div>
+      <div class="fg">
+        <div class="fg-group full"><label>Sign-in sync interval (minutes)</label><input type="number" id="ec-int" value="${cfg.sync_interval_min||5}" min="1" max="60"></div>
+        <div class="fg-group full"><label>Idle threshold (minutes of inactivity)</label><input type="number" id="ec-idle" value="${cfg.idle_threshold_min||15}" min="5" max="120"></div>
+        <div class="fg-group full"><label>Default calendar for new users</label>
+          <select id="ec-cal">${cals.map(c=>`<option value="${c.id}"${cfg.default_cal_id===c.id?' selected':''}>${c.name}</option>`).join('')}</select></div>
+        <div class="fg-group full"><label style="display:flex;align-items:center;gap:8px">${mkToggle(cfg.auto_add_users,'tog-autouser')} Auto-add new Entra users</label></div>
+      </div>
+      <div style="margin-top:14px;display:flex;gap:8px">
+        <button class="btn btn-primary" onclick="triggerSync()">Force sync now</button>
+      </div>
+    </div>
+  </div>
+  <div class="card" style="margin-top:16px">
+    <div class="card-title">Required Microsoft Graph API permissions</div>
+    <div style="display:flex;flex-wrap:wrap;gap:6px;margin-top:4px">${['AuditLog.Read.All','Directory.Read.All','User.Read.All','SignInActivity.Read','Reports.Read.All'].map(p=>`<span class="pill pill-green">${p}</span>`).join('')}</div>
+    <div style="margin-top:10px;font-size:12px;color:var(--txt2)">Add these as <strong>Application permissions</strong> in your Azure App Registration, then grant admin consent.</div>
+  </div>
+  <div class="card" style="margin-top:16px">
+    <div class="card-title">Sync log (real-time)</div>
+    <div class="sync-log" id="sync-log-el">${cfg.last_sync_at ? `<div class="info">Last sync: ${cfg.last_sync_at} — ${cfg.last_sync_msg||''}</div>` : '<div style="color:var(--txt3)">No sync run yet.</div>'}</div>
+  </div>`;
+  // Start SSE stream
+  startSyncStream();
+}
+function startSyncStream() {
+  const logEl = document.getElementById('sync-log-el');
+  if (!logEl) return;
+  const es = new EventSource('/api/sync-stream');
+  es.onmessage = e => {
+    try {
+      const data = JSON.parse(e.data);
+      if (data.type === 'sync_log') {
+        const cls = data.level || 'info';
+        logEl.innerHTML += `<div class="${cls}">[${data.ts?.slice(11,19)||''}] ${data.msg}</div>`;
+        logEl.scrollTop = logEl.scrollHeight;
+      }
+    } catch {}
+  };
+  es.onerror = () => es.close();
+}
+async function saveEntra() {
+  const data = { tenant_id:v('ec-tid'), client_id:v('ec-cid'), client_secret:v('ec-sec'), redirect_uri:v('ec-redir'), sync_interval_min:parseInt(v('ec-int')), idle_threshold_min:parseInt(v('ec-idle')), default_cal_id:v('ec-cal'), auto_add_users:document.getElementById('tog-autouser')?.classList.contains('on')?1:0 };
+  try { await POST('/entra/config', data); toast('Entra credentials saved'); checkEntraStatus(); }
+  catch(e) { toast(e.message,'error'); }
+}
+async function testEntra() {
+  const data = { tenant_id:v('ec-tid'), client_id:v('ec-cid'), client_secret:v('ec-sec') };
+  const logEl = document.getElementById('sync-log-el');
+  if (logEl) logEl.innerHTML = '<div class="info">Testing connection…</div>';
+  try {
+    const r = await POST('/entra/test', data);
+    const msg = `✓ Connected to ${r.orgName} · ${r.userCount} users`;
+    if (logEl) logEl.innerHTML = `<div class="info">${msg}</div>`;
+    toast(msg);
+  } catch(e) {
+    if (logEl) logEl.innerHTML = `<div class="error">✗ ${e.message}</div>`;
+    toast(e.message,'error');
+  }
+}
+async function triggerSync() {
+  try { await POST('/entra/sync'); toast('Sync started — watch log below'); }
+  catch(e) { toast(e.message,'error'); }
+}
+
+// ─── Audit log ────────────────────────────────────────────────────────────────
+async function vAuditLog(el) {
+  const entries = await GET('/audit-log?limit=100');
+  el.innerHTML = `<div class="sh"><div class="st">Audit log</div><button class="btn">Export CSV</button></div>
+  <div class="tbl-wrap"><table>
+    <tr><th>Timestamp</th><th>Actor</th><th>Action</th><th>Target</th><th>Detail</th></tr>
+    ${entries.map(e=>`<tr>
+      <td style="font-family:monospace;font-size:11px;color:var(--txt3)">${e.ts?.slice(0,19).replace('T',' ')}</td>
+      <td style="font-size:12px;font-weight:600">${e.actor_name||'—'}</td>
+      <td style="font-size:12px;white-space:normal">${e.action}</td>
+      <td style="font-size:11px">${e.target||'—'}</td>
+      <td style="font-size:11px;color:var(--txt3);white-space:normal">${e.detail||''}</td>
+    </tr>`).join('')}
+  </table></div>`;
+}
+
+// ─── Director views ───────────────────────────────────────────────────────────
+async function vDirDash(el) {
+  const [emps, reqs] = await Promise.all([GET('/employees'), GET('/leave-requests')]);
+  const pending = reqs.filter(r => r.status === 'pending_director').length;
+  const approved = reqs.filter(r => r.status === 'approved').length;
+  el.innerHTML = `
+  <div class="metrics-row">
+    <div class="metric"><div class="metric-label">Total headcount</div><div class="metric-value">${emps.length}</div></div>
+    <div class="metric"><div class="metric-label">Final approvals needed</div><div class="metric-value" style="color:var(--amb)">${pending}</div></div>
+    <div class="metric"><div class="metric-label">Approved requests YTD</div><div class="metric-value" style="color:var(--grn)">${approved}</div></div>
+    <div class="metric"><div class="metric-label">Total leave requests</div><div class="metric-value">${reqs.length}</div></div>
+  </div>
+  <div class="card"><div class="card-title">Requests by status</div>
+    <div style="position:relative;height:200px"><canvas id="cd-s"></canvas></div></div>`;
+  const statuses={approved:0,rejected:0,pending:0}; reqs.forEach(r=>{if(r.status==='approved')statuses.approved++;else if(r.status==='rejected')statuses.rejected++;else statuses.pending++;});
+  chartCache.cds=new Chart(document.getElementById('cd-s'),{type:'doughnut',data:{labels:['Approved','Rejected','Pending'],datasets:[{data:[statuses.approved,statuses.rejected,statuses.pending],backgroundColor:['#22c55e','#ef4444','#f59e0b'],borderWidth:0}]},options:{responsive:true,maintainAspectRatio:false,cutout:'55%',plugins:{legend:{position:'right',labels:{font:{size:11},boxWidth:10}}}}});
+}
+
+async function vReports(el) {
+  const reqs = await GET('/leave-requests');
+  const byType={};reqs.forEach(r=>{byType[r.type_name]=(byType[r.type_name]||0)+1;});
+  el.innerHTML=`
+  <div class="metrics-row">
+    <div class="metric"><div class="metric-label">Total requests</div><div class="metric-value">${reqs.length}</div></div>
+    <div class="metric"><div class="metric-label">Approved</div><div class="metric-value" style="color:var(--grn)">${reqs.filter(r=>r.status==='approved').length}</div></div>
+    <div class="metric"><div class="metric-label">Rejected</div><div class="metric-value" style="color:var(--red)">${reqs.filter(r=>r.status==='rejected').length}</div></div>
+    <div class="metric"><div class="metric-label">Pending</div><div class="metric-value" style="color:var(--amb)">${reqs.filter(r=>r.status!=='approved'&&r.status!=='rejected').length}</div></div>
+  </div>
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px">
+    <div class="card"><div class="card-title">Leave by type</div>
+      <div style="position:relative;height:220px"><canvas id="rp1"></canvas></div></div>
+    <div class="card"><div class="card-title">Leave days used by employee</div>
+      <div style="position:relative;height:220px"><canvas id="rp2"></canvas></div></div>
+  </div>`;
+  chartCache.rp1=new Chart(document.getElementById('rp1'),{type:'doughnut',data:{labels:Object.keys(byType),datasets:[{data:Object.values(byType),backgroundColor:['#3b82f6','#22c55e','#ef4444','#a855f7','#9ca3af','#f59e0b'],borderWidth:0}]},options:{responsive:true,maintainAspectRatio:false,cutout:'55%',plugins:{legend:{position:'right',labels:{font:{size:11},boxWidth:10}}}}});
+  const empDays={};reqs.filter(r=>r.status==='approved').forEach(r=>{empDays[r.emp_name]=(empDays[r.emp_name]||0)+r.days;});
+  const sorted=Object.entries(empDays).sort((a,b)=>b[1]-a[1]).slice(0,8);
+  chartCache.rp2=new Chart(document.getElementById('rp2'),{type:'bar',indexAxis:'y',data:{labels:sorted.map(e=>e[0].split(' ')[0]),datasets:[{label:'Days',data:sorted.map(e=>e[1]),backgroundColor:'#bfdbfe',borderColor:'#3b82f6',borderWidth:1.5,borderRadius:3}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{y:{grid:{display:false},ticks:{font:{size:11}}},x:{beginAtZero:true,grid:{color:'rgba(0,0,0,0.04)'},ticks:{font:{size:11}}}}}});
+}
+
+// ─── Boot ─────────────────────────────────────────────────────────────────────
+checkSession();
+</script>
+</body>
+</html>

@@ -270,6 +270,22 @@ function seedIfEmpty() {
   setSetting.run('approval_l3_threshold_days','5');
   setSetting.run('approval_l3_role','director');
   setSetting.run('approval_l3_sla','2');
+  // Email / SMTP defaults
+  setSetting.run('email_enabled','0');
+  setSetting.run('smtp_host','');
+  setSetting.run('smtp_port','587');
+  setSetting.run('smtp_secure','0');
+  setSetting.run('smtp_user','');
+  setSetting.run('smtp_pass','');
+  setSetting.run('smtp_from','');
+  setSetting.run('smtp_from_name','WorkIQ HR');
+  setSetting.run('email_on_submit','1');
+  setSetting.run('email_on_approve','1');
+  setSetting.run('email_on_reject','1');
+  setSetting.run('email_on_pending','1');
+  setSetting.run('email_reminder','1');
+  setSetting.run('email_monthly_bal','1');
+  setSetting.run('email_on_sync','0');
 
   // Entra config placeholder
   db.prepare(`INSERT OR IGNORE INTO entra_config (id) VALUES (1)`).run();

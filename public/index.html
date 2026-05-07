@@ -138,7 +138,20 @@ nav{flex:1;padding:8px 0;overflow-y:auto}
       <div class="logo-icon"><svg viewBox="0 0 20 20"><path d="M10 2L3 6v8l7 4 7-4V6L10 2zm0 2.3l4.5 2.6-4.5 2.6L5.5 6.9 10 4.3zm-5.5 4l4.5 2.6V15l-4.5-2.6V8.3zm6.5 2.6l4.5-2.6v4.1L11 15v-4.1z"/></svg></div>
       <div><div style="font-size:20px;font-weight:700">WorkIQ</div><div style="font-size:11px;color:var(--txt3)">Entra ID HR Platform</div></div>
     </div>
-    <div style="font-size:13px;font-weight:600;margin-bottom:10px">Select a profile</div>
+
+    <!-- Microsoft SSO button -->
+    <button id="sso-btn" class="btn btn-primary" style="width:100%;padding:10px;font-size:14px;justify-content:center;gap:10px;margin-bottom:14px" onclick="doSSOLogin()">
+      <svg width="18" height="18" viewBox="0 0 21 21" fill="none"><rect x="1" y="1" width="9" height="9" fill="#f25022"/><rect x="11" y="1" width="9" height="9" fill="#7fba00"/><rect x="1" y="11" width="9" height="9" fill="#00a4ef"/><rect x="11" y="11" width="9" height="9" fill="#ffb900"/></svg>
+      Sign in with Microsoft
+    </button>
+
+    <div style="display:flex;align-items:center;gap:8px;margin-bottom:14px">
+      <div style="flex:1;height:1px;background:var(--bdr)"></div>
+      <span style="font-size:11px;color:var(--txt3)">or use a demo account</span>
+      <div style="flex:1;height:1px;background:var(--bdr)"></div>
+    </div>
+
+    <div style="font-size:13px;font-weight:600;margin-bottom:10px">Demo profiles</div>
     <div class="pgrid" id="pgrid">
       <div class="pcard" data-id="employee" onclick="selProfile(this)"><div style="display:flex;align-items:center;gap:7px;margin-bottom:4px"><div class="av" style="width:26px;height:26px;background:#e6f2fb;color:#004e8c;font-size:10px">AJ</div><div><div class="pcard-name">Alex Johnson</div><div class="pcard-role">Employee</div></div></div><div class="pcard-cred">alex@company.com / employee123</div></div>
       <div class="pcard" data-id="manager" onclick="selProfile(this)"><div style="display:flex;align-items:center;gap:7px;margin-bottom:4px"><div class="av" style="width:26px;height:26px;background:#e6f9f0;color:#0d5c30;font-size:10px">MC</div><div><div class="pcard-name">Maria Chen</div><div class="pcard-role">Manager</div></div></div><div class="pcard-cred">maria@company.com / manager123</div></div>
@@ -146,8 +159,8 @@ nav{flex:1;padding:8px 0;overflow-y:auto}
       <div class="pcard" data-id="director" onclick="selProfile(this)"><div style="display:flex;align-items:center;gap:7px;margin-bottom:4px"><div class="av" style="width:26px;height:26px;background:#f0e9fb;color:#4a1a8a;font-size:10px">DP</div><div><div class="pcard-name">David Park</div><div class="pcard-role">Director</div></div></div><div class="pcard-cred">david@company.com / director123</div></div>
     </div>
     <div id="lerr" class="lerr"></div>
-    <button class="btn btn-primary" style="width:100%;padding:10px;font-size:14px;justify-content:center" onclick="doLogin()">Sign in</button>
-    <div style="font-size:11px;color:var(--txt3);text-align:center;margin:12px 0">or enter manually</div>
+    <button class="btn btn-primary" style="width:100%;padding:10px;font-size:14px;justify-content:center" onclick="doLogin()">Sign in with selected profile</button>
+    <div style="font-size:11px;color:var(--txt3);text-align:center;margin:12px 0">or enter credentials manually</div>
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
       <input type="email" id="mu" placeholder="Email address">
       <input type="password" id="mp" placeholder="Password" onkeydown="if(event.key==='Enter')doLogin()">
@@ -237,10 +250,20 @@ async function doLogin() {
     me = r.user; bootApp();
   } catch(e) { showErr(e.message); }
 }
+async function doSSOLogin() {
+  const btn = document.getElementById('sso-btn');
+  if (btn) { btn.disabled = true; btn.textContent = 'Redirecting to Microsoft…'; }
+  try {
+    const r = await GET('/sso/url');
+    if (r.url) { window.location.href = r.url; return; }
+    showErr(r.error || 'SSO not configured');
+  } catch(e) { showErr(e.message || 'SSO unavailable — configure Entra ID credentials first'); }
+  if (btn) { btn.disabled = false; btn.innerHTML = '<svg width="18" height="18" viewBox="0 0 21 21" fill="none"><rect x="1" y="1" width="9" height="9" fill="#f25022"/><rect x="11" y="1" width="9" height="9" fill="#7fba00"/><rect x="1" y="11" width="9" height="9" fill="#00a4ef"/><rect x="11" y="11" width="9" height="9" fill="#ffb900"/></svg> Sign in with Microsoft'; }
+}
 function showErr(m) {
   const el = document.getElementById('lerr');
   el.textContent = m; el.style.display = 'block';
-  setTimeout(() => el.style.display = 'none', 4000);
+  setTimeout(() => el.style.display = 'none', 5000);
 }
 async function doLogout() {
   await POST('/logout'); me = null;
@@ -251,6 +274,13 @@ async function doLogout() {
   document.querySelectorAll('.pcard').forEach(c => c.classList.remove('sel'));
 }
 async function checkSession() {
+  // Show SSO error if redirected back from Microsoft with error
+  const params = new URLSearchParams(window.location.search);
+  const ssoErr = params.get('sso_error');
+  if (ssoErr) {
+    history.replaceState({}, '', '/');
+    showErr('Microsoft sign-in failed: ' + decodeURIComponent(ssoErr));
+  }
   try { me = await GET('/me'); bootApp(); } catch {}
 }
 
@@ -293,10 +323,10 @@ async function checkEntraStatus() {
 const NAV_DEFS = {
   employee:[{id:'emp-dash',label:'My dashboard'},{id:'my-activity',label:'My activity log'},{id:'apply-leave',label:'Apply for leave'},{id:'my-leaves',label:'My leave requests',badge:'',badgeCls:'nb-a'},{id:'my-calendar',label:'My calendar'}],
   manager:[{id:'mgr-dash',label:'Team dashboard'},{id:'team-activity',label:'Team activity'},{id:'mgr-approvals',label:'Pending approvals',badge:'',badgeCls:'nb-r'},{id:'team-calendar',label:'Team calendar'},{id:'my-leaves',label:'My leaves'}],
-  hr:[{id:'hr-dash',label:'HR dashboard',sec:'OVERVIEW'},{id:'all-activity',label:'All activity'},{id:'all-leaves',label:'Leave requests',sec:'LEAVE',badge:'',badgeCls:'nb-r'},{id:'leave-types',label:'Leave types'},{id:'approval-rules',label:'Approval rules'},{id:'calendars',label:'Calendar management',sec:'ADMIN'},{id:'cal-assign',label:'Employee assignment'},{id:'leave-balance',label:'Leave balance engine'},{id:'employees',label:'Employee directory'},{id:'departments',label:'Departments & teams'},{id:'system',label:'System settings',sec:'SYSTEM'},{id:'entra-config',label:'Entra ID config'},{id:'audit-log',label:'Audit log'}],
+  hr:[{id:'hr-dash',label:'HR dashboard',sec:'OVERVIEW'},{id:'all-activity',label:'All activity'},{id:'all-leaves',label:'Leave requests',sec:'LEAVE',badge:'',badgeCls:'nb-r'},{id:'leave-types',label:'Leave types'},{id:'approval-rules',label:'Approval rules'},{id:'calendars',label:'Calendar management',sec:'ADMIN'},{id:'cal-assign',label:'Employee assignment'},{id:'leave-balance',label:'Leave balance engine'},{id:'employees',label:'Employee directory'},{id:'departments',label:'Departments & teams'},{id:'system',label:'System settings',sec:'SYSTEM'},{id:'email-settings',label:'Email / SMTP'},{id:'entra-config',label:'Entra ID config'},{id:'audit-log',label:'Audit log'}],
   director:[{id:'dir-dash',label:'Executive dashboard'},{id:'dir-approvals',label:'Final approvals',badge:'',badgeCls:'nb-r'},{id:'all-activity',label:'Activity overview'},{id:'reports',label:'Reports'}],
 };
-const PTITLES = {'emp-dash':'My dashboard','my-activity':'My activity log','apply-leave':'Apply for leave','my-leaves':'My leave requests','my-calendar':'My calendar','mgr-dash':'Team dashboard','team-activity':'Team activity','mgr-approvals':'Pending approvals','team-calendar':'Team calendar','hr-dash':'HR dashboard','all-activity':'Activity overview','all-leaves':'All leave requests','leave-types':'Leave types','approval-rules':'Approval workflows','calendars':'Calendar management','cal-assign':'Employee calendar assignment','leave-balance':'Leave balance engine','employees':'Employee directory','departments':'Departments & teams','system':'System settings','entra-config':'Entra ID / Azure config','audit-log':'Audit log','dir-dash':'Executive dashboard','dir-approvals':'Final approvals','reports':'Reports'};
+const PTITLES = {'emp-dash':'My dashboard','my-activity':'My activity log','apply-leave':'Apply for leave','my-leaves':'My leave requests','my-calendar':'My calendar','mgr-dash':'Team dashboard','team-activity':'Team activity','mgr-approvals':'Pending approvals','team-calendar':'Team calendar','hr-dash':'HR dashboard','all-activity':'Activity overview','all-leaves':'All leave requests','leave-types':'Leave types','approval-rules':'Approval workflows','calendars':'Calendar management','cal-assign':'Employee calendar assignment','leave-balance':'Leave balance engine','employees':'Employee directory','departments':'Departments & teams','system':'System settings','email-settings':'Email / SMTP settings','entra-config':'Entra ID / Azure config','audit-log':'Audit log','dir-dash':'Executive dashboard','dir-approvals':'Final approvals','reports':'Reports'};
 
 function buildNav() {
   const items = NAV_DEFS[me.role];
@@ -333,7 +363,7 @@ function navigate(id) {
   document.getElementById('save-bar-btn').style.display = 'none';
   const el = document.getElementById('page-content');
   el.innerHTML = '<div class="loading"><div class="spinner"></div> Loading…</div>';
-  const renders = {'emp-dash':vEmpDash,'my-activity':vMyActivity,'apply-leave':vApplyLeave,'my-leaves':vMyLeaves,'my-calendar':vCalendar,'mgr-dash':vMgrDash,'team-activity':vTeamActivity,'mgr-approvals':vApprovals,'team-calendar':vCalendar,'hr-dash':vHRDash,'all-activity':vTeamActivity,'all-leaves':vAllLeaves,'leave-types':vLeaveTypes,'approval-rules':vApprovalRules,'calendars':vCalendars,'cal-assign':vCalAssign,'leave-balance':vLeaveBalance,'employees':vEmployees,'departments':vDepartments,'system':vSystem,'entra-config':vEntraConfig,'audit-log':vAuditLog,'dir-dash':vDirDash,'dir-approvals':vApprovals,'reports':vReports};
+  const renders = {'emp-dash':vEmpDash,'my-activity':vMyActivity,'apply-leave':vApplyLeave,'my-leaves':vMyLeaves,'my-calendar':vCalendar,'mgr-dash':vMgrDash,'team-activity':vTeamActivity,'mgr-approvals':vApprovals,'team-calendar':vCalendar,'hr-dash':vHRDash,'all-activity':vTeamActivity,'all-leaves':vAllLeaves,'leave-types':vLeaveTypes,'approval-rules':vApprovalRules,'calendars':vCalendars,'cal-assign':vCalAssign,'leave-balance':vLeaveBalance,'employees':vEmployees,'departments':vDepartments,'system':vSystem,'email-settings':vEmailSettings,'entra-config':vEntraConfig,'audit-log':vAuditLog,'dir-dash':vDirDash,'dir-approvals':vApprovals,'reports':vReports};
   if (renders[id]) renders[id](el);
   else el.innerHTML = '';
 }
@@ -414,7 +444,8 @@ async function vMyActivity(el) {
 // ─── Apply leave ──────────────────────────────────────────────────────────────
 async function vApplyLeave(el) {
   const [lts, bals] = await Promise.all([GET('/leave-types'), GET('/leave-balances')]);
-  el.innerHTML = `<div class="info-box">Requests go through minimum 2 approval levels. Requests over <span id="l3-threshold">5</span> days require Director approval.</div>
+  const today = new Date().toISOString().slice(0,10);
+  el.innerHTML = `<div class="info-box">Days are auto-calculated excluding weekends and public holidays from your calendar. Requests over <span id="l3-threshold">5</span> days require Director approval.</div>
   <div class="card">
     <div class="card-title">Leave balance summary</div>
     <div class="metrics-row">${bals.slice(0,4).map(b=>`<div class="metric"><div class="metric-label" style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${b.type_name}</div><div class="metric-value">${Math.max(0,((b.accrued||0)+(b.adjustment||0))-(b.used||0)).toFixed(0)}d</div><div class="metric-sub">of ${b.entitled||0}d</div></div>`).join('')}</div>
@@ -424,11 +455,13 @@ async function vApplyLeave(el) {
     <div class="fg" style="margin-bottom:14px">
       <div class="fg-group"><label>Leave type</label>
         <select id="lt-sel" onchange="updateChain()">${lts.map(lt=>`<option value="${lt.id}">${lt.name}</option>`).join('')}</select></div>
-      <div class="fg-group"><label>Days</label><input type="number" id="lt-days" value="3" min="1" max="90" oninput="updateChain()"></div>
-      <div class="fg-group"><label>From date</label><input type="date" id="lt-from" value="${new Date().toISOString().slice(0,10)}"></div>
-      <div class="fg-group"><label>To date</label><input type="date" id="lt-to"></div>
+      <div class="fg-group"><label>Working days (auto-calculated)</label>
+        <input type="number" id="lt-days" value="1" min="1" max="90" readonly style="background:var(--bg)"></div>
+      <div class="fg-group"><label>From date</label><input type="date" id="lt-from" value="${today}" onchange="recalcDays()"></div>
+      <div class="fg-group"><label>To date</label><input type="date" id="lt-to" value="${today}" onchange="recalcDays()"></div>
       <div class="fg-group full"><label>Reason</label><textarea id="lt-reason" placeholder="Describe the reason…"></textarea></div>
     </div>
+    <div id="days-breakdown" style="font-size:12px;color:var(--az-dk);margin-bottom:12px;padding:8px 12px;background:var(--az-lt);border-radius:var(--r);display:none"></div>
     <div style="font-size:12px;font-weight:600;color:var(--txt2);margin-bottom:8px">Approval chain</div>
     <div class="ap-chain" id="chain-preview">
       <div class="ap-step"><div class="ap-dot ap-pending">1</div><div class="ap-label">Manager</div></div>
@@ -439,9 +472,28 @@ async function vApplyLeave(el) {
       <button class="btn btn-primary" onclick="submitLeave()">Submit request</button>
     </div>
   </div>`;
-  // Load threshold
   try { const s = await GET('/settings'); document.getElementById('l3-threshold').textContent = s.approval_l3_threshold_days || 5; } catch {}
+  recalcDays();
 }
+
+async function recalcDays() {
+  const from = document.getElementById('lt-from')?.value;
+  const to   = document.getElementById('lt-to')?.value;
+  if (!from || !to || to < from) return;
+  const days = await countWorkingDays(from, to);
+  const daysEl    = document.getElementById('lt-days');
+  const breakdown = document.getElementById('days-breakdown');
+  if (daysEl) daysEl.value = days;
+  if (breakdown) {
+    let calName = '';
+    try { const ci = await GET('/my-calendar-info'); calName = ci.calendar?.name ? ` · ${ci.calendar.name} calendar` : ''; } catch {}
+    breakdown.style.display = '';
+    breakdown.innerHTML = `<strong>${from}</strong> → <strong>${to}</strong> = <strong>${days} working day${days!==1?'s':''}</strong> (weekends &amp; public holidays excluded${calName})`;
+  }
+  updateChain();
+}
+
+
 function updateChain() {
   const days = parseInt(document.getElementById('lt-days')?.value||3);
   const ch = document.getElementById('chain-preview'); if(!ch) return;
@@ -482,35 +534,120 @@ async function vMyLeaves(el) {
   </table></div>`;
 }
 
-// ─── Calendar ─────────────────────────────────────────────────────────────────
+// ─── Calendar — navigable, holiday-aware ─────────────────────────────────────
+let calViewYear = new Date().getFullYear();
+let calViewMonth = new Date().getMonth();
+
 async function vCalendar(el) {
+  // Fetch employee's calendar (holidays) and approved leave
+  let calInfo = { calendar: null, approvedLeave: [] };
+  try { calInfo = await GET('/my-calendar-info'); } catch {}
+
+  const cal = calInfo.calendar;
+  const holidays = (cal?.holidays || []);
+  const approvedLeave = calInfo.approvedLeave || [];
+  const weekendDays = (cal?.weekends || 'Sat-Sun');
+
+  // Parse holiday strings like "Jan 1", "Dec 25" → set of "MM-DD"
+  const MONTH_MAP = {Jan:'01',Feb:'02',Mar:'03',Apr:'04',May:'05',Jun:'06',Jul:'07',Aug:'08',Sep:'09',Oct:'10',Nov:'11',Dec:'12'};
+  const holidaySet = new Set(holidays.map(h => {
+    const [mon, day] = h.trim().split(' ');
+    return `${MONTH_MAP[mon]}-${String(day).padStart(2,'0')}`;
+  }));
+
+  // Approved leave date ranges → set of "YYYY-MM-DD"
+  const leaveDates = new Set();
+  approvedLeave.forEach(lr => {
+    let d = new Date(lr.from_date);
+    const end = new Date(lr.to_date);
+    while (d <= end) {
+      leaveDates.add(d.toISOString().slice(0,10));
+      d.setDate(d.getDate()+1);
+    }
+  });
+
+  function isWeekendDay(dow) {
+    if (weekendDays === 'Fri-Sat') return dow === 5 || dow === 6;
+    if (weekendDays === 'Fri')     return dow === 5;
+    if (weekendDays === 'Sun')     return dow === 0;
+    return dow === 0 || dow === 6; // Sat-Sun default
+  }
+
   const today = new Date();
-  const year = today.getFullYear(), month = today.getMonth();
+  const year = calViewYear, month = calViewMonth;
   const firstDay = new Date(year, month, 1).getDay();
   const daysInMonth = new Date(year, month + 1, 0).getDate();
-  const months = ['January','February','March','April','May','June','July','August','September','October','November','December'];
+  const MONTHS = ['January','February','March','April','May','June','July','August','September','October','November','December'];
+
   const dnms = ['Su','Mo','Tu','We','Th','Fr','Sa'].map(d=>`<div style="font-size:10px;font-weight:600;color:var(--txt3);text-align:center;padding-bottom:4px">${d}</div>`).join('');
+
   let cells = '';
   for(let i=0;i<firstDay;i++) cells+=`<div></div>`;
   for(let d=1;d<=daysInMonth;d++){
-    const dow=(firstDay+d-1)%7;
-    const isWeekend=dow===0||dow===6;
-    const isToday=d===today.getDate();
-    let cls='cal-day';
-    if(isWeekend) cls+=' cal-weekend';
-    else cls+=' cal-worked';
-    if(isToday) cls+=' cal-today';
-    cells+=`<div class="${cls}">${d}</div>`;
+    const dow = (firstDay+d-1)%7;
+    const dateStr = `${year}-${String(month+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
+    const mmdd    = `${String(month+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
+    const isToday = d===today.getDate() && month===today.getMonth() && year===today.getFullYear();
+    let cls='cal-day'; let title='';
+    if (isWeekendDay(dow)) { cls+=' cal-weekend'; }
+    else if (holidaySet.has(mmdd)) { cls+=' cal-holiday'; title=` title="Public holiday"`; }
+    else if (leaveDates.has(dateStr)) { cls+=' cal-leave'; title=` title="Approved leave"`; }
+    else { cls+=' cal-worked'; }
+    if (isToday) cls+=' cal-today';
+    cells+=`<div class="${cls}"${title}>${d}</div>`;
   }
-  el.innerHTML=`<div class="card" style="max-width:400px">
-    <div class="card-title" style="margin-bottom:14px">${months[month]} ${year}</div>
+
+  el.innerHTML=`<div class="card" style="max-width:420px">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px">
+      <button class="btn" style="padding:4px 10px" onclick="calNav(-1)">&#8592;</button>
+      <div class="card-title" style="margin-bottom:0">${MONTHS[month]} ${year}</div>
+      <button class="btn" style="padding:4px 10px" onclick="calNav(1)">&#8594;</button>
+    </div>
+    ${cal ? `<div style="font-size:11px;color:var(--txt2);margin-bottom:10px">Calendar: <strong>${cal.name}</strong> · Weekends: ${cal.weekends}</div>` : ''}
     <div class="cal-grid">${dnms}${cells}</div>
-    <div class="cal-legend">
+    <div class="cal-legend" style="margin-top:10px">
       <div class="cl-item"><div class="cl-dot" style="background:#bbf7d0"></div>Worked</div>
-      <div class="cl-item"><div class="cl-dot" style="background:var(--red-lt)"></div>Leave</div>
+      <div class="cl-item"><div class="cl-dot" style="background:var(--red-lt)"></div>Approved leave</div>
+      <div class="cl-item"><div class="cl-dot" style="background:var(--az-lt)"></div>Public holiday</div>
       <div class="cl-item"><div class="cl-dot" style="background:var(--bg)"></div>Weekend</div>
     </div>
   </div>`;
+}
+
+function calNav(delta) {
+  calViewMonth += delta;
+  if (calViewMonth > 11) { calViewMonth = 0; calViewYear++; }
+  if (calViewMonth < 0)  { calViewMonth = 11; calViewYear--; }
+  const el = document.getElementById('page-content');
+  if (el) vCalendar(el);
+}
+
+// ─── Holiday-aware working day count ─────────────────────────────────────────
+async function countWorkingDays(fromDate, toDate) {
+  let calInfo = { calendar: null };
+  try { calInfo = await GET('/my-calendar-info'); } catch {}
+  const cal = calInfo.calendar;
+  const weekendDays = cal?.weekends || 'Sat-Sun';
+  const MONTH_MAP = {Jan:'01',Feb:'02',Mar:'03',Apr:'04',May:'05',Jun:'06',Jul:'07',Aug:'08',Sep:'09',Oct:'10',Nov:'11',Dec:'12'};
+  const holidays = (cal?.holidays || []);
+  const holidaySet = new Set(holidays.map(h => {
+    const [mon, day] = h.trim().split(' ');
+    return `${MONTH_MAP[mon]}-${String(day).padStart(2,'0')}`;
+  }));
+  function isWE(dow) {
+    if (weekendDays==='Fri-Sat') return dow===5||dow===6;
+    if (weekendDays==='Fri') return dow===5;
+    return dow===0||dow===6;
+  }
+  let count = 0, d = new Date(fromDate);
+  const end = new Date(toDate);
+  while (d <= end) {
+    const dow = d.getDay();
+    const mmdd = `${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+    if (!isWE(dow) && !holidaySet.has(mmdd)) count++;
+    d.setDate(d.getDate()+1);
+  }
+  return count;
 }
 
 // ─── Manager dashboard ────────────────────────────────────────────────────────
@@ -1241,6 +1378,96 @@ async function vReports(el) {
   const empDays={};reqs.filter(r=>r.status==='approved').forEach(r=>{empDays[r.emp_name]=(empDays[r.emp_name]||0)+r.days;});
   const sorted=Object.entries(empDays).sort((a,b)=>b[1]-a[1]).slice(0,8);
   chartCache.rp2=new Chart(document.getElementById('rp2'),{type:'bar',indexAxis:'y',data:{labels:sorted.map(e=>e[0].split(' ')[0]),datasets:[{label:'Days',data:sorted.map(e=>e[1]),backgroundColor:'#bfdbfe',borderColor:'#3b82f6',borderWidth:1.5,borderRadius:3}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{y:{grid:{display:false},ticks:{font:{size:11}}},x:{beginAtZero:true,grid:{color:'rgba(0,0,0,0.04)'},ticks:{font:{size:11}}}}}});
+}
+
+// ─── Email / SMTP settings ────────────────────────────────────────────────────
+async function vEmailSettings(el) {
+  const s = await GET('/email-settings');
+  el.innerHTML = `
+  <div class="info-box">Configure SMTP to send email notifications for leave approvals, rejections, balance summaries, and reminders. Install <code>nodemailer</code> via npm to enable actual sending.</div>
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px">
+    <div class="card">
+      <div class="card-title">SMTP server</div>
+      <div class="fg">
+        <div class="fg-group full" style="display:flex;gap:10px;align-items:center;margin-bottom:4px">
+          ${mkToggle(s.email_enabled==='1','tog-email-on')}
+          <label style="margin:0;font-size:13px;color:var(--txt)">Email notifications enabled</label>
+        </div>
+        <div class="fg-group full"><label>SMTP host</label><input type="text" id="es-host" value="${s.smtp_host||''}" placeholder="smtp.office365.com or smtp.gmail.com"></div>
+        <div class="fg-group"><label>Port</label><input type="number" id="es-port" value="${s.smtp_port||'587'}"></div>
+        <div class="fg-group"><label>Encryption</label>
+          <select id="es-sec"><option value="0"${s.smtp_secure!=='1'?' selected':''}>STARTTLS (port 587)</option><option value="1"${s.smtp_secure==='1'?' selected':''}>SSL/TLS (port 465)</option></select></div>
+        <div class="fg-group"><label>Username / email</label><input type="email" id="es-user" value="${s.smtp_user||''}" placeholder="noreply@company.com"></div>
+        <div class="fg-group"><label>Password / app password</label><input type="password" id="es-pass" value="${s.smtp_pass||''}" placeholder="App password or SMTP password"></div>
+        <div class="fg-group"><label>From address</label><input type="email" id="es-from" value="${s.smtp_from||''}" placeholder="noreply@company.com"></div>
+        <div class="fg-group"><label>From name</label><input type="text" id="es-fname" value="${s.smtp_from_name||'WorkIQ HR'}" placeholder="WorkIQ HR"></div>
+      </div>
+      <div style="display:flex;gap:8px;margin-top:14px">
+        <button class="btn btn-primary" onclick="saveEmailSettings()">Save SMTP settings</button>
+        <button class="btn" onclick="testEmailSettings()">Send test email</button>
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-title">Notification triggers</div>
+      <div style="font-size:12px;color:var(--txt2);margin-bottom:14px">Choose which events trigger an email notification.</div>
+      ${[
+        ['email_on_submit',   'Employee submits leave request',     '1'],
+        ['email_on_approve',  'Leave request approved (any level)', '1'],
+        ['email_on_reject',   'Leave request rejected',             '1'],
+        ['email_on_pending',  'Approver has pending request',       '1'],
+        ['email_reminder',    'Reminder when SLA about to expire',  '1'],
+        ['email_monthly_bal', 'Monthly balance summary to all',     '1'],
+        ['email_on_sync',     'Entra ID sync complete summary',     '0'],
+      ].map(([key, label, def]) => `<div class="tw" style="padding:8px 0;border-bottom:1px solid var(--bdr)" onclick="this.querySelector('.tt').classList.toggle('on')">
+        <div class="tt${(s[key]||def)==='1'?' on':''}" id="tog-${key}"><div class="tk"></div></div>
+        <span style="font-size:13px;color:var(--txt)">${label}</span>
+      </div>`).join('')}
+    </div>
+  </div>
+  <div class="card" style="margin-top:16px">
+    <div class="card-title">Email template preview</div>
+    <div style="background:var(--bg);border-radius:var(--r);padding:16px;font-size:12px;color:var(--txt2);line-height:1.8">
+      <strong style="color:var(--txt)">Subject:</strong> Leave request LR-001 approved ✓<br>
+      <strong style="color:var(--txt)">To:</strong> alex@company.com<br><br>
+      Hi Alex,<br><br>
+      Your leave request <strong>LR-001</strong> (Annual Leave, 3 days: 2026-06-01 → 2026-06-03) has been <strong style="color:var(--grn)">approved</strong> by all approvers.<br><br>
+      <em>— WorkIQ HR Platform</em>
+    </div>
+    <div style="margin-top:10px;font-size:11px;color:var(--txt3)">
+      To enable real email sending: <code>npm install nodemailer</code> in your workiq2 folder, then restart the server.
+    </div>
+  </div>`;
+}
+
+async function saveEmailSettings() {
+  const data = {
+    smtp_host:      document.getElementById('es-host')?.value,
+    smtp_port:      document.getElementById('es-port')?.value,
+    smtp_secure:    document.getElementById('es-sec')?.value,
+    smtp_user:      document.getElementById('es-user')?.value,
+    smtp_pass:      document.getElementById('es-pass')?.value,
+    smtp_from:      document.getElementById('es-from')?.value,
+    smtp_from_name: document.getElementById('es-fname')?.value,
+    email_enabled:  document.getElementById('tog-email-on')?.classList.contains('on') ? '1' : '0',
+    email_on_submit:   document.getElementById('tog-email_on_submit')?.classList.contains('on') ? '1':'0',
+    email_on_approve:  document.getElementById('tog-email_on_approve')?.classList.contains('on') ? '1':'0',
+    email_on_reject:   document.getElementById('tog-email_on_reject')?.classList.contains('on') ? '1':'0',
+    email_on_pending:  document.getElementById('tog-email_on_pending')?.classList.contains('on') ? '1':'0',
+    email_reminder:    document.getElementById('tog-email_reminder')?.classList.contains('on') ? '1':'0',
+    email_monthly_bal: document.getElementById('tog-email_monthly_bal')?.classList.contains('on') ? '1':'0',
+    email_on_sync:     document.getElementById('tog-email_on_sync')?.classList.contains('on') ? '1':'0',
+  };
+  try {
+    await POST('/email-settings', data);
+    toast('Email settings saved');
+  } catch(e) { toast(e.message, 'error'); }
+}
+
+async function testEmailSettings() {
+  try {
+    const r = await POST('/email-settings/test', {});
+    toast(r.message || 'Config validated');
+  } catch(e) { toast(e.message, 'error'); }
 }
 
 // ─── Boot ─────────────────────────────────────────────────────────────────────

@@ -1,21 +1,22 @@
 'use strict';
 const http  = require('http');
+const https = require('https');
 const fs    = require('fs');
 const path  = require('path');
 const url   = require('url');
-const { Q } = require('./db');
+const crypto = require('crypto');
+const { Q, db } = require('./db');
 const entra = require('./entra');
 
 const PORT = process.env.PORT || 3000;
 
-// ── SSE clients for real-time sync log streaming ──────────────────────────────
+// ── SSE clients ───────────────────────────────────────────────────────────────
 const sseClients = new Set();
 function broadcast(data) {
   const payload = `data: ${JSON.stringify(data)}\n\n`;
   sseClients.forEach(res => { try { res.write(payload); } catch {} });
 }
 
-// ── Start sync scheduler if credentials already saved ─────────────────────────
 entra.startSyncScheduler(broadcast);
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
@@ -47,6 +48,44 @@ function requireRole(emp, res, ...roles) {
   return true;
 }
 
+// ── Microsoft SSO: exchange auth code for user info ───────────────────────────
+async function exchangeMsftCode(code, redirectUri, cfg) {
+  const body = new URLSearchParams({
+    grant_type:    'authorization_code',
+    client_id:     cfg.client_id,
+    client_secret: cfg.client_secret,
+    code,
+    redirect_uri:  redirectUri,
+    scope:         'openid profile email User.Read',
+  }).toString();
+  return new Promise((resolve, reject) => {
+    const opts = {
+      hostname: 'login.microsoftonline.com',
+      path: `/${cfg.tenant_id}/oauth2/v2.0/token`,
+      method: 'POST',
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded', 'Content-Length': Buffer.byteLength(body) },
+    };
+    let resp = '';
+    const r = https.request(opts, res => { res.on('data', d => resp += d); res.on('end', () => { try { resolve(JSON.parse(resp)); } catch { reject(new Error('Token parse error')); } }); });
+    r.on('error', reject);
+    r.write(body); r.end();
+  });
+}
+
+async function getMsftUserInfo(accessToken) {
+  return new Promise((resolve, reject) => {
+    const opts = {
+      hostname: 'graph.microsoft.com',
+      path: '/v1.0/me?$select=id,displayName,mail,userPrincipalName,department,jobTitle',
+      headers: { Authorization: `Bearer ${accessToken}` },
+    };
+    let resp = '';
+    const r = https.request(opts, res => { res.on('data', d => resp += d); res.on('end', () => { try { resolve(JSON.parse(resp)); } catch { reject(new Error('User info parse error')); } }); });
+    r.on('error', reject);
+    r.end();
+  });
+}
+
 const MIME = { '.html':'text/html','.css':'text/css','.js':'application/javascript','.json':'application/json','.ico':'image/x-icon','.png':'image/png' };
 
 // ── Router ────────────────────────────────────────────────────────────────────
@@ -56,16 +95,82 @@ const server = http.createServer(async (req, res) => {
   const pathname = parsed.pathname;
   const method   = req.method;
 
-  // ── Auth ────────────────────────────────────────────────────────────────────
+  // ── Password login (local accounts) ────────────────────────────────────────
   if (pathname === '/api/login' && method === 'POST') {
     const body = await readBody(req);
     const emp = Q.getEmployeeByEmail(body.username) ||
-                Q.db.prepare("SELECT * FROM employees WHERE name=? OR LOWER(role)=LOWER(?)").get(body.username, body.username);
+                db.prepare("SELECT * FROM employees WHERE name=? OR LOWER(role)=LOWER(?) LIMIT 1").get(body.username, body.username);
     if (!emp || !Q.verifyPassword(emp, body.password)) return json(res, 401, { error: 'Invalid credentials' });
     if (!emp.active) return json(res, 403, { error: 'Account disabled' });
     const token = Q.createSession(emp.id);
     res.writeHead(200, { 'Set-Cookie': `wiq_session=${token}; Path=/; HttpOnly; SameSite=Lax`, 'Content-Type': 'application/json' });
     return res.end(JSON.stringify({ ok: true, user: safeUser(emp) }));
+  }
+
+  // ── Microsoft SSO: get auth URL ─────────────────────────────────────────────
+  if (pathname === '/api/sso/url' && method === 'GET') {
+    const cfg = Q.getEntraConfig();
+    if (!cfg.tenant_id || !cfg.client_id) return json(res, 400, { error: 'Entra ID not configured' });
+    const redirectUri = cfg.redirect_uri || `${parsed.protocol || 'http'}://${req.headers.host}/auth/callback`;
+    const state = crypto.randomBytes(16).toString('hex');
+    const authUrl = `https://login.microsoftonline.com/${cfg.tenant_id}/oauth2/v2.0/authorize?` + new URLSearchParams({
+      client_id:     cfg.client_id,
+      response_type: 'code',
+      redirect_uri:  redirectUri,
+      scope:         'openid profile email User.Read',
+      state,
+      prompt:        'select_account',
+    });
+    return json(res, 200, { url: authUrl, state });
+  }
+
+  // ── Microsoft SSO: callback — exchange code for session ─────────────────────
+  if (pathname === '/auth/callback') {
+    const code  = parsed.query.code;
+    const error = parsed.query.error;
+    if (error) {
+      res.writeHead(302, { Location: `/?sso_error=${encodeURIComponent(parsed.query.error_description||error)}` });
+      return res.end();
+    }
+    const cfg = Q.getEntraConfig();
+    const redirectUri = cfg.redirect_uri || `http://${req.headers.host}/auth/callback`;
+    try {
+      const tokens  = await exchangeMsftCode(code, redirectUri, cfg);
+      if (tokens.error) throw new Error(tokens.error_description || tokens.error);
+      const msUser  = await getMsftUserInfo(tokens.access_token);
+      const email   = msUser.mail || msUser.userPrincipalName;
+      if (!email) throw new Error('No email returned from Microsoft');
+
+      // Find or create employee
+      let emp = Q.getEmployeeByEmail(email);
+      if (!emp) {
+        const ini = (msUser.displayName||'XX').split(' ').map(w=>w[0]).join('').slice(0,2).toUpperCase();
+        const r = db.prepare('INSERT INTO employees (entra_id,name,email,initials,dept,title,cal_id,role,bal_type,av_bg,av_color) VALUES (?,?,?,?,?,?,?,?,?,?,?)')
+          .run(msUser.id, msUser.displayName||email, email, ini, msUser.department||'', msUser.jobTitle||'',
+               cfg.default_cal_id||'cal-ae', 'employee', 'fixed', '#e6f2fb', '#004e8c');
+        // Seed balances for new SSO user
+        const year = new Date().getFullYear();
+        const ltRows = db.prepare('SELECT id, days_per_year FROM leave_types WHERE active=1').all();
+        ltRows.forEach(lt => {
+          db.prepare('INSERT OR IGNORE INTO leave_balances (employee_id,leave_type_id,year,entitled,accrued,used,adjustment) VALUES (?,?,?,?,?,0,0)')
+            .run(r.lastInsertRowid, lt.id, year, lt.days_per_year, lt.days_per_year);
+        });
+        emp = Q.getEmployee(r.lastInsertRowid);
+        db.prepare('INSERT INTO audit_log (actor_name,action,target) VALUES (?,?,?)').run('System', 'SSO user created', email);
+      } else {
+        // Update Entra ID and profile
+        db.prepare("UPDATE employees SET entra_id=?,name=?,dept=?,title=?,updated_at=datetime('now') WHERE id=?")
+          .run(msUser.id, msUser.displayName||emp.name, msUser.department||emp.dept, msUser.jobTitle||emp.title, emp.id);
+        emp = Q.getEmployee(emp.id);
+      }
+      if (!emp.active) throw new Error('Account disabled');
+      const sessionToken = Q.createSession(emp.id);
+      res.writeHead(302, { 'Set-Cookie': `wiq_session=${sessionToken}; Path=/; HttpOnly; SameSite=Lax`, Location: '/' });
+      return res.end();
+    } catch (e) {
+      res.writeHead(302, { Location: `/?sso_error=${encodeURIComponent(e.message)}` });
+      return res.end();
+    }
   }
 
   if (pathname === '/api/logout' && method === 'POST') {
@@ -91,6 +196,61 @@ const server = http.createServer(async (req, res) => {
       Q.setSettings(body, emp.name);
       return json(res, 200, { ok: true });
     }
+  }
+
+  // ── Email settings (stored as regular settings keys) ─────────────────────────
+  if (pathname === '/api/email-settings') {
+    const emp = requireAuth(req, res); if (!emp) return;
+    if (!requireRole(emp, res, 'hr')) return;
+    if (method === 'GET') {
+      const all = Q.getSettings();
+      return json(res, 200, {
+        smtp_host:     all.smtp_host     || '',
+        smtp_port:     all.smtp_port     || '587',
+        smtp_secure:   all.smtp_secure   || '0',
+        smtp_user:     all.smtp_user     || '',
+        smtp_pass:     all.smtp_pass     ? '••••••••' : '',
+        smtp_from:     all.smtp_from     || '',
+        smtp_from_name: all.smtp_from_name || 'WorkIQ HR',
+        email_enabled: all.email_enabled || '0',
+      });
+    }
+    if (method === 'POST') {
+      const body = await readBody(req);
+      const toSave = { ...body };
+      // Don't overwrite password if masked
+      if (toSave.smtp_pass === '••••••••') delete toSave.smtp_pass;
+      Q.setSettings(toSave, emp.name);
+      return json(res, 200, { ok: true });
+    }
+  }
+
+  // ── Test email ────────────────────────────────────────────────────────────────
+  if (pathname === '/api/email-settings/test' && method === 'POST') {
+    const emp = requireAuth(req, res); if (!emp) return;
+    if (!requireRole(emp, res, 'hr')) return;
+    const s = Q.getSettings();
+    if (!s.smtp_host) return json(res, 400, { error: 'SMTP not configured' });
+    // We don't have nodemailer (no npm), so return config validation result
+    const missing = [];
+    if (!s.smtp_host) missing.push('SMTP host');
+    if (!s.smtp_user) missing.push('SMTP username');
+    if (!s.smtp_pass) missing.push('SMTP password');
+    if (!s.smtp_from) missing.push('From address');
+    if (missing.length) return json(res, 400, { error: `Missing: ${missing.join(', ')}` });
+    db.prepare('INSERT INTO audit_log (actor_name,action,target,detail) VALUES (?,?,?,?)').run(emp.name, 'Email test triggered', s.smtp_host, `to ${emp.email}`);
+    return json(res, 200, { ok: true, message: `Config validated. To send real emails, install nodemailer: npm install nodemailer` });
+  }
+
+  // ── Employee calendar info (for holiday-aware day count) ──────────────────────
+  if (/^\/api\/my-calendar-info$/.test(pathname)) {
+    const emp = requireAuth(req, res); if (!emp) return;
+    const empRecord = db.prepare('SELECT cal_id FROM employees WHERE id=?').get(emp.id);
+    const cal = empRecord?.cal_id ? Q.getCalendar(empRecord.cal_id) : null;
+    const leaveRows = db.prepare(
+      "SELECT from_date, to_date FROM leave_requests WHERE employee_id=? AND status='approved'"
+    ).all(emp.id);
+    return json(res, 200, { calendar: cal, approvedLeave: leaveRows });
   }
 
   // ── Calendars ────────────────────────────────────────────────────────────────

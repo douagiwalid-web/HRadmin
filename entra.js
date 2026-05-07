@@ -83,22 +83,51 @@ async function runSync(cfg, broadcast) {
   // ── 1. Sync user directory ──────────────────────────────────────────────────
   let usersAdded = 0, usersUpdated = 0;
   try {
-    const usersResp = await graphRequest(token, 'users?$select=id,displayName,mail,department,jobTitle&$top=100');
-    const users = usersResp.value || [];
-    log(`Found ${users.length} users in directory`);
+    // Follow @odata.nextLink pagination to get ALL users, not just first 100
+    let nextUrl = 'users?$select=id,displayName,mail,department,jobTitle&$top=999';
+    const allUsers = [];
+    while (nextUrl) {
+      const resp = await graphRequest(token, nextUrl);
+      (resp.value || []).forEach(u => allUsers.push(u));
+      // nextLink contains the full URL; extract just the path after /v1.0/
+      if (resp['@odata.nextLink']) {
+        nextUrl = resp['@odata.nextLink'].replace(/^https:\/\/graph\.microsoft\.com\/v1\.0\//, '');
+      } else {
+        nextUrl = null;
+      }
+    }
+    log(`Found ${allUsers.length} users in directory`);
+
+    const year = new Date().getFullYear();
+    const monthsElapsed = new Date().getMonth(); // 0-based
+    const ltRows = db.prepare('SELECT id, days_per_year FROM leave_types WHERE active=1').all();
+    const insertBal = db.prepare(
+      'INSERT OR IGNORE INTO leave_balances (employee_id,leave_type_id,year,entitled,accrued,used,adjustment) VALUES (?,?,?,?,?,0,0)'
+    );
+
     if (cfg.auto_add_users) {
-      users.forEach(u => {
+      allUsers.forEach(u => {
         if (!u.mail) return;
         const existing = Q.getEmployeeByEmail(u.mail);
         const ini = (u.displayName||'XX').split(' ').map(w=>w[0]).join('').slice(0,2).toUpperCase();
+        let empId;
         if (!existing) {
-          db.prepare('INSERT OR IGNORE INTO employees (entra_id,name,email,initials,dept,title,cal_id,role,bal_type,av_bg,av_color) VALUES (?,?,?,?,?,?,?,?,?,?,?)')
+          const r = db.prepare('INSERT OR IGNORE INTO employees (entra_id,name,email,initials,dept,title,cal_id,role,bal_type,av_bg,av_color) VALUES (?,?,?,?,?,?,?,?,?,?,?)')
             .run(u.id, u.displayName||u.mail, u.mail, ini, u.department||'', u.jobTitle||'', cfg.default_cal_id||'cal-ae', 'employee', 'fixed', '#e6f2fb', '#004e8c');
+          empId = r.lastInsertRowid;
           usersAdded++;
         } else {
           db.prepare("UPDATE employees SET entra_id=?,name=?,dept=?,title=?,updated_at=datetime('now') WHERE email=?")
             .run(u.id, u.displayName||existing.name, u.department||existing.dept, u.jobTitle||existing.title, u.mail);
+          empId = existing.id;
           usersUpdated++;
+        }
+        // Ensure leave_balance rows exist for every leave type this year
+        if (empId) {
+          ltRows.forEach(lt => {
+            const accrued = lt.days_per_year; // fixed by default for synced users
+            insertBal.run(empId, lt.id, year, lt.days_per_year, accrued);
+          });
         }
       });
       log(`Users: ${usersAdded} added, ${usersUpdated} updated`);
@@ -110,37 +139,41 @@ async function runSync(cfg, broadcast) {
   // ── 2. Sync sign-in logs ────────────────────────────────────────────────────
   let logsImported = 0;
   try {
-    // Last 24 hours — encodeURIComponent so colons/+ in ISO date are safe in URL
     const since = new Date(Date.now() - 24*60*60*1000).toISOString();
-    const filterPath = `auditLogs/signIns?$filter=createdDateTime ge ${encodeURIComponent(since)}&$top=100&$select=id,createdDateTime,userPrincipalName,userId,status,ipAddress,location`;
-    const logsResp = await graphRequest(token, filterPath);
-    const logs = logsResp.value || [];
-    log(`Found ${logs.length} sign-in events`);
+    // Only encode the datetime value itself, not the OData operators
+    const sinceVal = since.replace(/:/g, '%3A').replace(/\+/g, '%2B');
     const insertLog = db.prepare(
       'INSERT OR IGNORE INTO activity_log (employee_id,entra_id,event_type,event_time,ip_address,raw) VALUES (?,?,?,?,?,?)'
     );
     const dupCheck = db.prepare(
       'SELECT id FROM activity_log WHERE entra_id=? AND event_time=? AND event_type=? LIMIT 1'
     );
-    logs.forEach(entry => {
-      const emp = Q.getEmployeeByEmail(entry.userPrincipalName);
-      const eventType = (entry.status?.errorCode === 0) ? 'SignIn' : 'SignInFailed';
-      try {
-        const exists = dupCheck.get(entry.userId, entry.createdDateTime, eventType);
-        if (!exists) {
-          insertLog.run(
-            emp?.id || null,
-            entry.userId,
-            eventType,
-            entry.createdDateTime,
-            entry.ipAddress || null,
-            JSON.stringify(entry)
-          );
-          logsImported++;
-        }
-      } catch {}
-    });
-    log(`✓ ${logsImported} sign-in events imported`);
+
+    // Paginate sign-in logs
+    let logUrl = `auditLogs/signIns?$filter=createdDateTime ge ${sinceVal}&$top=100&$select=id,createdDateTime,userPrincipalName,userId,status,ipAddress`;
+    let totalLogs = 0;
+    while (logUrl) {
+      const logsResp = await graphRequest(token, logUrl);
+      const logs = logsResp.value || [];
+      totalLogs += logs.length;
+      logs.forEach(entry => {
+        const emp = Q.getEmployeeByEmail(entry.userPrincipalName);
+        const eventType = (entry.status?.errorCode === 0) ? 'SignIn' : 'SignInFailed';
+        try {
+          const exists = dupCheck.get(entry.userId, entry.createdDateTime, eventType);
+          if (!exists) {
+            insertLog.run(emp?.id||null, entry.userId, eventType, entry.createdDateTime, entry.ipAddress||null, JSON.stringify(entry));
+            logsImported++;
+          }
+        } catch {}
+      });
+      if (logsResp['@odata.nextLink']) {
+        logUrl = logsResp['@odata.nextLink'].replace(/^https:\/\/graph\.microsoft\.com\/v1\.0\//, '');
+      } else {
+        logUrl = null;
+      }
+    }
+    log(`✓ ${logsImported} sign-in events imported (${totalLogs} fetched)`);
   } catch (err) {
     log(`⚠ Sign-in log sync skipped: ${err.message}`, 'warn');
   }

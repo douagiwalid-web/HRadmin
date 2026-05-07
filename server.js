@@ -48,16 +48,33 @@ function requireRole(emp, res, ...roles) {
   return true;
 }
 
+// ── PKCE verifier store (state → {verifier, redirectUri}, TTL 10 min) ─────────
+const pkceStore = new Map();
+setInterval(() => {
+  const now = Date.now();
+  pkceStore.forEach((v, k) => { if (now - v.ts > 10 * 60 * 1000) pkceStore.delete(k); });
+}, 60 * 1000);
+
+function generatePKCE() {
+  const verifier  = crypto.randomBytes(32).toString('base64url');
+  const challenge = crypto.createHash('sha256').update(verifier).digest('base64url');
+  return { verifier, challenge };
+}
+
 // ── Microsoft SSO: exchange auth code for user info ───────────────────────────
-async function exchangeMsftCode(code, redirectUri, cfg) {
-  const body = new URLSearchParams({
+async function exchangeMsftCode(code, redirectUri, cfg, codeVerifier) {
+  // For confidential clients (with client_secret), Microsoft requires BOTH
+  // client_secret AND code_verifier when PKCE was used in the auth request.
+  const params = {
     grant_type:    'authorization_code',
     client_id:     cfg.client_id,
-    client_secret: cfg.client_secret,
+    client_secret: cfg.client_secret || '',
     code,
     redirect_uri:  redirectUri,
     scope:         'openid profile email User.Read',
-  }).toString();
+  };
+  if (codeVerifier) params.code_verifier = codeVerifier;
+  const body = new URLSearchParams(params).toString();
   return new Promise((resolve, reject) => {
     const opts = {
       hostname: 'login.microsoftonline.com',
@@ -110,16 +127,21 @@ const server = http.createServer(async (req, res) => {
   // ── Microsoft SSO: get auth URL ─────────────────────────────────────────────
   if (pathname === '/api/sso/url' && method === 'GET') {
     const cfg = Q.getEntraConfig();
-    if (!cfg.tenant_id || !cfg.client_id) return json(res, 400, { error: 'Entra ID not configured' });
-    const redirectUri = cfg.redirect_uri || `${parsed.protocol || 'http'}://${req.headers.host}/auth/callback`;
+    if (!cfg.tenant_id || !cfg.client_id) return json(res, 400, { error: 'Entra ID not configured — enter Tenant ID and Client ID in Entra config first' });
+    const redirectUri = cfg.redirect_uri || `http://${req.headers.host}/auth/callback`;
     const state = crypto.randomBytes(16).toString('hex');
-    const authUrl = `https://login.microsoftonline.com/${cfg.tenant_id}/oauth2/v2.0/authorize?` + new URLSearchParams({
-      client_id:     cfg.client_id,
-      response_type: 'code',
-      redirect_uri:  redirectUri,
-      scope:         'openid profile email User.Read',
+    const { verifier, challenge } = generatePKCE();
+    // Store verifier keyed by state — callback retrieves it in a moment
+    pkceStore.set(state, { verifier, redirectUri, ts: Date.now() });
+    const authUrl = 'https://login.microsoftonline.com/' + cfg.tenant_id + '/oauth2/v2.0/authorize?' + new URLSearchParams({
+      client_id:             cfg.client_id,
+      response_type:         'code',
+      redirect_uri:          redirectUri,
+      scope:                 'openid profile email User.Read',
       state,
-      prompt:        'select_account',
+      prompt:                'select_account',
+      code_challenge:        challenge,
+      code_challenge_method: 'S256',
     });
     return json(res, 200, { url: authUrl, state });
   }
@@ -127,18 +149,23 @@ const server = http.createServer(async (req, res) => {
   // ── Microsoft SSO: callback — exchange code for session ─────────────────────
   if (pathname === '/auth/callback') {
     const code  = parsed.query.code;
+    const state = parsed.query.state;
     const error = parsed.query.error;
     if (error) {
       res.writeHead(302, { Location: `/?sso_error=${encodeURIComponent(parsed.query.error_description||error)}` });
       return res.end();
     }
     const cfg = Q.getEntraConfig();
-    const redirectUri = cfg.redirect_uri || `http://${req.headers.host}/auth/callback`;
+    // Retrieve PKCE verifier stored when auth URL was generated
+    const pkce = pkceStore.get(state);
+    pkceStore.delete(state); // one-time use
+    const redirectUri = pkce?.redirectUri || cfg.redirect_uri || `http://${req.headers.host}/auth/callback`;
+    const codeVerifier = pkce?.verifier || null;
     try {
-      const tokens  = await exchangeMsftCode(code, redirectUri, cfg);
+      const tokens = await exchangeMsftCode(code, redirectUri, cfg, codeVerifier);
       if (tokens.error) throw new Error(tokens.error_description || tokens.error);
-      const msUser  = await getMsftUserInfo(tokens.access_token);
-      const email   = msUser.mail || msUser.userPrincipalName;
+      const msUser = await getMsftUserInfo(tokens.access_token);
+      const email  = msUser.mail || msUser.userPrincipalName;
       if (!email) throw new Error('No email returned from Microsoft');
 
       // Find or create employee
@@ -148,7 +175,6 @@ const server = http.createServer(async (req, res) => {
         const r = db.prepare('INSERT INTO employees (entra_id,name,email,initials,dept,title,cal_id,role,bal_type,av_bg,av_color) VALUES (?,?,?,?,?,?,?,?,?,?,?)')
           .run(msUser.id, msUser.displayName||email, email, ini, msUser.department||'', msUser.jobTitle||'',
                cfg.default_cal_id||'cal-ae', 'employee', 'fixed', '#e6f2fb', '#004e8c');
-        // Seed balances for new SSO user
         const year = new Date().getFullYear();
         const ltRows = db.prepare('SELECT id, days_per_year FROM leave_types WHERE active=1').all();
         ltRows.forEach(lt => {
@@ -158,7 +184,6 @@ const server = http.createServer(async (req, res) => {
         emp = Q.getEmployee(r.lastInsertRowid);
         db.prepare('INSERT INTO audit_log (actor_name,action,target) VALUES (?,?,?)').run('System', 'SSO user created', email);
       } else {
-        // Update Entra ID and profile
         db.prepare("UPDATE employees SET entra_id=?,name=?,dept=?,title=?,updated_at=datetime('now') WHERE id=?")
           .run(msUser.id, msUser.displayName||emp.name, msUser.department||emp.dept, msUser.jobTitle||emp.title, emp.id);
         emp = Q.getEmployee(emp.id);

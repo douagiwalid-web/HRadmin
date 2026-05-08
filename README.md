@@ -128,4 +128,3 @@ workiq2/
 └── public/
     └── index.html   — Full single-page frontend
 ```
-# HRadmin

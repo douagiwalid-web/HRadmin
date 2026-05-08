@@ -63,17 +63,15 @@ function generatePKCE() {
 
 // ── Microsoft SSO: exchange auth code for user info ───────────────────────────
 async function exchangeMsftCode(code, redirectUri, cfg, codeVerifier) {
-  // For confidential clients (with client_secret), Microsoft requires BOTH
-  // client_secret AND code_verifier when PKCE was used in the auth request.
+  // Public client + PKCE: do NOT send client_secret — Azure rejects it
   const params = {
     grant_type:    'authorization_code',
     client_id:     cfg.client_id,
-    client_secret: cfg.client_secret || '',
     code,
     redirect_uri:  redirectUri,
     scope:         'openid profile email User.Read',
+    code_verifier: codeVerifier || '',
   };
-  if (codeVerifier) params.code_verifier = codeVerifier;
   const body = new URLSearchParams(params).toString();
   return new Promise((resolve, reject) => {
     const opts = {
@@ -434,18 +432,47 @@ const server = http.createServer(async (req, res) => {
     } catch (e) { return json(res, 400, { error: e.message }); }
   }
 
-  // ── Activity log ──────────────────────────────────────────────────────────────
+  // ── Activity endpoints ────────────────────────────────────────────────────────
   if (pathname === '/api/activity') {
     const emp = requireAuth(req, res); if (!emp) return;
     const filters = {};
     if (emp.role === 'employee') filters.employeeId = emp.id;
-    if (parsed.query.date) filters.date = parsed.query.date;
+    if (parsed.query.date)  filters.date  = parsed.query.date;
+    if (parsed.query.dept)  filters.dept  = parsed.query.dept;
+    if (parsed.query.team)  filters.team  = parsed.query.team;
     return json(res, 200, Q.getActivityLog(filters));
   }
+
+  if (pathname === '/api/activity/24h') {
+    const emp = requireAuth(req, res); if (!emp) return;
+    const filters = {};
+    if (emp.role === 'employee') filters.employeeId = emp.id;
+    if (parsed.query.date)       filters.date = parsed.query.date;
+    if (parsed.query.dept)       filters.dept = parsed.query.dept;
+    if (parsed.query.team)       filters.team = parsed.query.team;
+    if (parsed.query.employee_id && ['manager','hr','director'].includes(emp.role))
+      filters.employeeId = parseInt(parsed.query.employee_id);
+    return json(res, 200, Q.getActivity24h(filters));
+  }
+
+  if (pathname === '/api/activity/live') {
+    const emp = requireAuth(req, res); if (!emp) return;
+    return json(res, 200, Q.getLiveStats());
+  }
+
+  if (pathname === '/api/activity/rollup') {
+    const emp = requireAuth(req, res); if (!emp) return;
+    if (!requireRole(emp, res, 'manager','hr','director')) return;
+    const groupBy = parsed.query.by || 'dept';
+    const date    = parsed.query.date || new Date().toISOString().slice(0,10);
+    return json(res, 200, Q.getActivityRollup(groupBy, date));
+  }
+
   if (pathname === '/api/activity/today-summary') {
     const emp = requireAuth(req, res); if (!emp) return;
     return json(res, 200, Q.getTodaySummary());
   }
+
 
   // ── Entra ID ──────────────────────────────────────────────────────────────────
   if (pathname === '/api/entra/config') {

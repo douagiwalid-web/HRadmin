@@ -153,10 +153,10 @@ nav{flex:1;padding:8px 0;overflow-y:auto}
 
     <div style="font-size:13px;font-weight:600;margin-bottom:10px">Demo profiles</div>
     <div class="pgrid" id="pgrid">
-      <div class="pcard" data-id="employee" onclick="selProfile(this)"><div style="display:flex;align-items:center;gap:7px;margin-bottom:4px"><div class="av" style="width:26px;height:26px;background:#e6f2fb;color:#004e8c;font-size:10px">AJ</div><div><div class="pcard-name">Firas Ben Salah</div><div class="pcard-role">Employee</div></div></div><div class="pcard-cred">alex@company.com / employee123</div></div>
-      <div class="pcard" data-id="manager" onclick="selProfile(this)"><div style="display:flex;align-items:center;gap:7px;margin-bottom:4px"><div class="av" style="width:26px;height:26px;background:#e6f9f0;color:#0d5c30;font-size:10px">MC</div><div><div class="pcard-name">Imed Fliss</div><div class="pcard-role">CEO</div></div></div><div class="pcard-cred">maria@company.com / manager123</div></div>
-      <div class="pcard" data-id="hr" onclick="selProfile(this)"><div style="display:flex;align-items:center;gap:7px;margin-bottom:4px"><div class="av" style="width:26px;height:26px;background:#fef3e6;color:#7a4a00;font-size:10px">SA</div><div><div class="pcard-name">Khaled Kammoun</div><div class="pcard-role">HR Admin</div></div></div><div class="pcard-cred">sarah@company.com / hr123</div></div>
-      <div class="pcard" data-id="director" onclick="selProfile(this)"><div style="display:flex;align-items:center;gap:7px;margin-bottom:4px"><div class="av" style="width:26px;height:26px;background:#f0e9fb;color:#4a1a8a;font-size:10px">DP</div><div><div class="pcard-name">Walid Douagi</div><div class="pcard-role">Director</div></div></div><div class="pcard-cred">david@company.com / director123</div></div>
+      <div class="pcard" data-id="employee" onclick="selProfile(this)"><div style="display:flex;align-items:center;gap:7px;margin-bottom:4px"><div class="av" style="width:26px;height:26px;background:#e6f2fb;color:#004e8c;font-size:10px">AJ</div><div><div class="pcard-name">Alex Johnson</div><div class="pcard-role">Employee</div></div></div><div class="pcard-cred">alex@company.com / employee123</div></div>
+      <div class="pcard" data-id="manager" onclick="selProfile(this)"><div style="display:flex;align-items:center;gap:7px;margin-bottom:4px"><div class="av" style="width:26px;height:26px;background:#e6f9f0;color:#0d5c30;font-size:10px">MC</div><div><div class="pcard-name">Maria Chen</div><div class="pcard-role">Manager</div></div></div><div class="pcard-cred">maria@company.com / manager123</div></div>
+      <div class="pcard" data-id="hr" onclick="selProfile(this)"><div style="display:flex;align-items:center;gap:7px;margin-bottom:4px"><div class="av" style="width:26px;height:26px;background:#fef3e6;color:#7a4a00;font-size:10px">SA</div><div><div class="pcard-name">Sarah Ahmed</div><div class="pcard-role">HR Admin</div></div></div><div class="pcard-cred">sarah@company.com / hr123</div></div>
+      <div class="pcard" data-id="director" onclick="selProfile(this)"><div style="display:flex;align-items:center;gap:7px;margin-bottom:4px"><div class="av" style="width:26px;height:26px;background:#f0e9fb;color:#4a1a8a;font-size:10px">DP</div><div><div class="pcard-name">David Park</div><div class="pcard-role">Director</div></div></div><div class="pcard-cred">david@company.com / director123</div></div>
     </div>
     <div id="lerr" class="lerr"></div>
     <button class="btn btn-primary" style="width:100%;padding:10px;font-size:14px;justify-content:center" onclick="doLogin()">Sign in with selected profile</button>
@@ -363,7 +363,7 @@ function navigate(id) {
   document.getElementById('save-bar-btn').style.display = 'none';
   const el = document.getElementById('page-content');
   el.innerHTML = '<div class="loading"><div class="spinner"></div> Loading…</div>';
-  const renders = {'emp-dash':vEmpDash,'my-activity':vMyActivity,'apply-leave':vApplyLeave,'my-leaves':vMyLeaves,'my-calendar':vCalendar,'mgr-dash':vMgrDash,'team-activity':vTeamActivity,'mgr-approvals':vApprovals,'team-calendar':vCalendar,'hr-dash':vHRDash,'all-activity':vTeamActivity,'all-leaves':vAllLeaves,'leave-types':vLeaveTypes,'approval-rules':vApprovalRules,'calendars':vCalendars,'cal-assign':vCalAssign,'leave-balance':vLeaveBalance,'employees':vEmployees,'departments':vDepartments,'system':vSystem,'email-settings':vEmailSettings,'entra-config':vEntraConfig,'audit-log':vAuditLog,'dir-dash':vDirDash,'dir-approvals':vApprovals,'reports':vReports};
+  const renders = {'emp-dash':vEmpDash,'my-activity':vMyActivity,'apply-leave':vApplyLeave,'my-leaves':vMyLeaves,'my-calendar':vCalendar,'mgr-dash':vMgrDash,'team-activity':vTeamActivity,'mgr-approvals':vApprovals,'team-calendar':vCalendar,'hr-dash':vHRDash,'all-activity':vAllActivity,'all-leaves':vAllLeaves,'leave-types':vLeaveTypes,'approval-rules':vApprovalRules,'calendars':vCalendars,'cal-assign':vCalAssign,'leave-balance':vLeaveBalance,'employees':vEmployees,'departments':vDepartments,'system':vSystem,'email-settings':vEmailSettings,'entra-config':vEntraConfig,'audit-log':vAuditLog,'dir-dash':vDirDash,'dir-approvals':vApprovals,'reports':vReports};
   if (renders[id]) renders[id](el);
   else el.innerHTML = '';
 }
@@ -671,19 +671,334 @@ async function vMgrDash(el) {
   </div>`;
 }
 
-// ─── Team activity ────────────────────────────────────────────────────────────
+// ─── Activity Dashboard — full 24h tracking ──────────────────────────────────
 async function vTeamActivity(el) {
-  const summary = await GET('/activity/today-summary');
-  el.innerHTML = `<div class="info-box">Activity synced from Entra ID sign-in logs.</div>
+  await vActivityDashboard(el);
+}
+async function vAllActivity(el) {
+  await vActivityDashboard(el);
+}
+
+async function vActivityDashboard(el) {
+  el.innerHTML = '<div class="loading"><div class="spinner"></div> Loading activity data…</div>';
+  const tab  = tabState['activity'] || 'overview';
+  const date = tabState['activity-date'] || new Date().toISOString().slice(0,10);
+
+  const [live, emps, depts] = await Promise.all([
+    GET('/activity/live'),
+    GET('/employees'),
+    GET('/departments'),
+  ]);
+
+  const deptList  = [...new Set(emps.map(e => e.dept).filter(Boolean))].sort();
+  const teamList  = [...new Set(emps.map(e => e.team).filter(Boolean))].sort();
+
+  el.innerHTML = `
+  <!-- Live stats bar -->
+  <div class="metrics-row" style="margin-bottom:16px">
+    <div class="metric" style="border-left:3px solid #22c55e">
+      <div class="metric-label">Active now</div>
+      <div class="metric-value" style="color:#22c55e">${live.active_now}</div>
+      <div class="metric-sub">within last ${Q?.idleThreshold||15} min</div>
+    </div>
+    <div class="metric" style="border-left:3px solid #f59e0b">
+      <div class="metric-label">Idle</div>
+      <div class="metric-value" style="color:#f59e0b">${live.idle_now}</div>
+      <div class="metric-sub">signed in, inactive</div>
+    </div>
+    <div class="metric" style="border-left:3px solid #9ca3af">
+      <div class="metric-label">Not connected</div>
+      <div class="metric-value" style="color:var(--txt2)">${live.offline_not_leave}</div>
+      <div class="metric-sub">not on leave</div>
+    </div>
+    <div class="metric" style="border-left:3px solid var(--red)">
+      <div class="metric-label">On leave today</div>
+      <div class="metric-value" style="color:var(--red)">${live.on_leave}</div>
+      <div class="metric-sub">approved leave</div>
+    </div>
+    <div class="metric" style="border-left:3px solid var(--az)">
+      <div class="metric-label">Logged in today</div>
+      <div class="metric-value" style="color:var(--az)">${live.logged_in_today}</div>
+      <div class="metric-sub">of ${live.total} total</div>
+    </div>
+    <div class="metric">
+      <div class="metric-label">Total employees</div>
+      <div class="metric-value">${live.total}</div>
+      <div class="metric-sub" id="live-updated">Live</div>
+    </div>
+  </div>
+
+  <!-- Filters row -->
+  <div style="display:flex;gap:8px;align-items:center;margin-bottom:16px;flex-wrap:wrap">
+    <input type="date" id="act-date" value="${date}" style="width:150px;padding:5px 8px;font-size:12px" onchange="actFilter()">
+    <select id="act-dept" style="font-size:12px;padding:5px 8px" onchange="actFilter()">
+      <option value="">All departments</option>
+      ${deptList.map(d=>`<option value="${d}">${d}</option>`).join('')}
+    </select>
+    <select id="act-team" style="font-size:12px;padding:5px 8px" onchange="actFilter()">
+      <option value="">All teams</option>
+      ${teamList.map(t=>`<option value="${t}">${t}</option>`).join('')}
+    </select>
+    <button class="btn" style="font-size:11px;padding:4px 10px" onclick="actRefresh()">↺ Refresh</button>
+    <span id="act-count" style="font-size:11px;color:var(--txt3);margin-left:4px"></span>
+  </div>
+
+  <!-- Tab bar -->
+  <div class="tab-bar">
+    <div class="tab${tab==='overview'?' active':''}" onclick="setActTab('overview')">Overview</div>
+    <div class="tab${tab==='timeline'?' active':''}" onclick="setActTab('timeline')">24h Timeline</div>
+    <div class="tab${tab==='by-dept'?' active':''}" onclick="setActTab('by-dept')">By department</div>
+    <div class="tab${tab==='by-team'?' active':''}" onclick="setActTab('by-team')">By team</div>
+    <div class="tab${tab==='events'?' active':''}" onclick="setActTab('events')">Raw events</div>
+  </div>
+  <div id="act-body"><div class="loading"><div class="spinner"></div></div></div>`;
+
+  // Start live refresh every 60s
+  if (window._actTimer) clearInterval(window._actTimer);
+  window._actTimer = setInterval(() => { if (view === 'all-activity' || view === 'team-activity') actRefresh(); }, 60000);
+
+  loadActTab(tab, date);
+}
+
+function setActTab(tab) {
+  tabState['activity'] = tab;
+  const date = tabState['activity-date'] || new Date().toISOString().slice(0,10);
+  loadActTab(tab, date);
+  document.querySelectorAll('.tab-bar .tab').forEach(t => {
+    t.classList.toggle('active', t.textContent.trim().toLowerCase().replace(/\s+/g,'-') === tab ||
+      (tab==='by-dept'&&t.textContent.includes('dept')) || (tab==='by-team'&&t.textContent.includes('team')));
+  });
+}
+
+function actFilter() {
+  const date = document.getElementById('act-date')?.value || new Date().toISOString().slice(0,10);
+  tabState['activity-date'] = date;
+  tabState['activity-dept'] = document.getElementById('act-dept')?.value || '';
+  tabState['activity-team'] = document.getElementById('act-team')?.value || '';
+  loadActTab(tabState['activity'] || 'overview', date);
+}
+
+function actRefresh() {
+  const date = tabState['activity-date'] || new Date().toISOString().slice(0,10);
+  loadActTab(tabState['activity'] || 'overview', date);
+}
+
+async function loadActTab(tab, date) {
+  const body = document.getElementById('act-body');
+  if (!body) return;
+  body.innerHTML = '<div class="loading"><div class="spinner"></div> Loading…</div>';
+
+  const dept = tabState['activity-dept'] || '';
+  const team = tabState['activity-team'] || '';
+  let qs = `?date=${date}`;
+  if (dept) qs += `&dept=${encodeURIComponent(dept)}`;
+  if (team) qs += `&team=${encodeURIComponent(team)}`;
+
+  try {
+    if (tab === 'overview') {
+      const data = await GET(`/activity/24h${qs}`);
+      document.getElementById('act-count').textContent = `${data.length} employees`;
+      renderActOverview(body, data, date);
+    } else if (tab === 'timeline') {
+      const data = await GET(`/activity/24h${qs}`);
+      renderActTimeline(body, data, date);
+    } else if (tab === 'by-dept') {
+      const data = await GET(`/activity/rollup?by=dept&date=${date}`);
+      renderActRollup(body, data, 'Department');
+    } else if (tab === 'by-team') {
+      const data = await GET(`/activity/rollup?by=team&date=${date}`);
+      renderActRollup(body, data, 'Team');
+    } else if (tab === 'events') {
+      const data = await GET(`/activity${qs}`);
+      renderActEvents(body, data);
+    }
+  } catch(e) {
+    body.innerHTML = `<div class="info-box" style="border-left-color:var(--red);color:var(--red)">${e.message}</div>`;
+  }
+}
+
+function statusBadge(s) {
+  const m = {active:'pill-green',idle:'pill-amber',offline:'pill-gray',on_leave:'pill-red',holiday:'pill-blue',weekend:'pill-gray'};
+  const l = {active:'Active',idle:'Idle',offline:'Offline',on_leave:'On leave',holiday:'Holiday',weekend:'Weekend'};
+  return `<span class="pill ${m[s]||'pill-gray'}">${l[s]||s}</span>`;
+}
+function fmtMin(m) {
+  if (!m && m!==0) return '—';
+  const h = Math.floor(m/60), mn = m%60;
+  return h > 0 ? `${h}h ${mn}m` : `${mn}m`;
+}
+function fmtTime(iso) {
+  if (!iso) return '—';
+  return iso.slice(11,16);
+}
+
+function renderActOverview(el, data, date) {
+  const active   = data.filter(e => e.status==='active');
+  const idle     = data.filter(e => e.status==='idle');
+  const offline  = data.filter(e => e.status==='offline');
+  const onLeave  = data.filter(e => e.status==='on_leave');
+  const holiday  = data.filter(e => e.status==='holiday');
+
+  el.innerHTML = `
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:16px">
+    <div class="card">
+      <div class="card-title">Status breakdown — ${date}</div>
+      <div style="position:relative;height:200px"><canvas id="act-pie" role="img" aria-label="Status breakdown pie chart"></canvas></div>
+    </div>
+    <div class="card">
+      <div class="card-title">Time distribution (avg across employees)</div>
+      <div style="position:relative;height:200px"><canvas id="act-bar" role="img" aria-label="Average active vs offline minutes bar chart"></canvas></div>
+    </div>
+  </div>
   <div class="tbl-wrap"><table>
-    <tr><th>Employee</th><th>Dept</th><th>First login</th><th>Last logout</th><th>Status</th></tr>
-    ${summary.map(e=>`<tr>
+    <tr><th>Employee</th><th>Dept</th><th>Team</th><th>Status</th><th>First login</th><th>Last seen</th><th>Sessions</th><th>Active time</th><th>Offline time</th><th>IP</th></tr>
+    ${data.map(e=>`<tr>
       <td><div style="display:flex;align-items:center;gap:7px">${avDiv(e,24)}${e.name}</div></td>
-      <td>${e.dept||'—'}</td>
-      <td style="font-family:monospace;font-size:11px">${e.first_login?e.first_login.slice(11,16):'—'}</td>
-      <td style="font-family:monospace;font-size:11px">${e.last_logout?e.last_logout.slice(11,16):'—'}</td>
-      <td><span class="pill ${e.first_login?'pill-green':'pill-gray'}">${e.first_login?'Active':'Offline'}</span></td>
+      <td style="font-size:12px">${e.dept||'—'}</td>
+      <td style="font-size:12px;color:var(--txt3)">${e.team||'—'}</td>
+      <td>${statusBadge(e.status)}</td>
+      <td style="font-family:monospace;font-size:11px">${fmtTime(e.first_login)}</td>
+      <td style="font-family:monospace;font-size:11px">${fmtTime(e.last_seen)}</td>
+      <td style="text-align:center">${e.session_count||0}</td>
+      <td style="font-weight:600;color:var(--grn)">${fmtMin(e.active_min)}</td>
+      <td style="color:var(--txt3)">${fmtMin(e.offline_min)}</td>
+      <td style="font-family:monospace;font-size:10px;color:var(--txt3)">${e.last_ip||'—'}</td>
     </tr>`).join('')}
+  </table></div>`;
+
+  const statusCounts = [active.length, idle.length, offline.length, onLeave.length, holiday.length];
+  chartCache.actPie = new Chart(document.getElementById('act-pie'), {
+    type: 'doughnut',
+    data: { labels:['Active','Idle','Offline','On leave','Holiday'],
+      datasets:[{data:statusCounts, backgroundColor:['#22c55e','#f59e0b','#9ca3af','#ef4444','#3b82f6'], borderWidth:0}]},
+    options:{responsive:true,maintainAspectRatio:false,cutout:'55%',plugins:{legend:{position:'right',labels:{font:{size:11},boxWidth:10}}}}
+  });
+
+  const avgActive  = data.length ? Math.round(data.reduce((s,e)=>s+(e.active_min||0),0)/data.length) : 0;
+  const avgOffline = data.length ? Math.round(data.reduce((s,e)=>s+(e.offline_min||0),0)/data.length) : 0;
+  chartCache.actBar = new Chart(document.getElementById('act-bar'), {
+    type: 'bar',
+    data: { labels:['Active time','Offline time'],
+      datasets:[{data:[avgActive, avgOffline], backgroundColor:['#bbf7d0','#e5e7eb'], borderColor:['#22c55e','#9ca3af'], borderWidth:1.5, borderRadius:4}]},
+    options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},
+      scales:{y:{beginAtZero:true,ticks:{callback:v=>fmtMin(v),font:{size:11}},grid:{color:'rgba(0,0,0,0.04)'}},x:{grid:{display:false},ticks:{font:{size:11}}}}}
+  });
+}
+
+function renderActTimeline(el, data, date) {
+  // Build 24-hour horizontal bar chart per employee
+  // Each bar shows sessions as green segments, gaps as grey
+  const HOUR_LABELS = Array.from({length:25},(_,i)=>`${String(i).padStart(2,'0')}:00`);
+  const dayStart = new Date(`${date}T00:00:00.000Z`).getTime();
+  const dayDur   = 24 * 60 * 60 * 1000;
+
+  const rows = data.map(e => {
+    const segments = (e.sessions||[]).map(s => {
+      const start = (new Date(s.start).getTime() - dayStart) / dayDur * 100;
+      const end   = (new Date(s.end || new Date().toISOString()).getTime() - dayStart) / dayDur * 100;
+      return { left: Math.max(0,Math.min(100,start)).toFixed(2), width: Math.max(0.3, Math.min(100,end)-Math.max(0,start)).toFixed(2) };
+    });
+    return `<div style="display:flex;align-items:center;gap:8px;padding:4px 0;border-bottom:1px solid var(--bdr)">
+      <div style="width:130px;flex-shrink:0;display:flex;align-items:center;gap:6px;font-size:12px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">
+        ${avDiv(e,22)}${e.name}
+      </div>
+      <div style="flex:1;height:18px;background:var(--bg);border-radius:4px;position:relative;overflow:hidden">
+        ${segments.map(s=>`<div style="position:absolute;top:0;left:${s.left}%;width:${s.width}%;height:100%;background:#22c55e;border-radius:2px"></div>`).join('')}
+      </div>
+      <div style="width:60px;flex-shrink:0;font-size:11px;font-weight:600;color:var(--grn);text-align:right">${fmtMin(e.active_min)}</div>
+      <div style="width:50px;flex-shrink:0">${statusBadge(e.status)}</div>
+    </div>`;
+  }).join('');
+
+  const hourMarkers = Array.from({length:7},(_,i)=>{
+    const h = i*4;
+    return `<div style="position:absolute;left:${(h/24*100).toFixed(1)}%;font-size:10px;color:var(--txt3)">${String(h).padStart(2,'0')}:00</div>`;
+  }).join('');
+
+  el.innerHTML = `
+  <div class="card">
+    <div style="display:flex;align-items:center;gap:16px;margin-bottom:12px;font-size:12px">
+      <span style="color:var(--txt2)">24h timeline for ${date}</span>
+      <div style="display:flex;align-items:center;gap:5px"><div style="width:12px;height:8px;background:#22c55e;border-radius:2px"></div><span style="color:var(--txt2)">Active session</span></div>
+      <div style="display:flex;align-items:center;gap:5px"><div style="width:12px;height:8px;background:var(--bg);border:1px solid var(--bdr);border-radius:2px"></div><span style="color:var(--txt2)">No activity</span></div>
+    </div>
+    <!-- Hour axis -->
+    <div style="display:flex;margin-bottom:6px;padding-left:146px;position:relative;height:16px">${hourMarkers}</div>
+    <!-- Rows -->
+    <div>${rows || '<div style="color:var(--txt2);font-size:13px;padding:16px">No activity data for this date.</div>'}</div>
+  </div>`;
+}
+
+function renderActRollup(el, data, groupLabel) {
+  el.innerHTML = `
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:16px">
+    <div class="card"><div class="card-title">${groupLabel} login coverage</div>
+      <div style="position:relative;height:220px"><canvas id="rollup-chart" role="img" aria-label="${groupLabel} login coverage chart"></canvas></div>
+    </div>
+    <div class="card"><div class="card-title">Login rate by ${groupLabel.toLowerCase()}</div>
+      <div style="position:relative;height:220px"><canvas id="rollup-rate" role="img" aria-label="${groupLabel} login rate chart"></canvas></div>
+    </div>
+  </div>
+  <div class="tbl-wrap"><table>
+    <tr><th>${groupLabel}</th><th>Total employees</th><th>Logged in today</th><th>Not connected</th><th>Login rate</th><th>Earliest login</th><th>Latest login</th></tr>
+    ${data.map(d=>{
+      const rate = d.total_employees>0 ? Math.round(d.logged_in_today/d.total_employees*100) : 0;
+      const notConn = d.total_employees - d.logged_in_today;
+      return `<tr>
+        <td style="font-weight:600">${d.group_name||'—'}</td>
+        <td>${d.total_employees}</td>
+        <td style="color:var(--grn);font-weight:600">${d.logged_in_today}</td>
+        <td style="color:var(--txt3)">${notConn}</td>
+        <td>
+          <div style="display:flex;align-items:center;gap:8px">
+            <div style="flex:1;height:6px;border-radius:3px;background:var(--bg);overflow:hidden;min-width:60px">
+              <div style="height:100%;border-radius:3px;background:${rate>70?'#22c55e':rate>40?'#f59e0b':'#ef4444'};width:${rate}%"></div>
+            </div>
+            <span style="font-size:12px;font-weight:600;width:32px;text-align:right">${rate}%</span>
+          </div>
+        </td>
+        <td style="font-family:monospace;font-size:11px">${fmtTime(d.earliest_login)}</td>
+        <td style="font-family:monospace;font-size:11px">${fmtTime(d.latest_login)}</td>
+      </tr>`;
+    }).join('')}
+  </table></div>`;
+
+  if (data.length) {
+    chartCache.rollupChart = new Chart(document.getElementById('rollup-chart'), {
+      type: 'bar',
+      data: { labels: data.map(d=>d.group_name||'?'),
+        datasets:[
+          {label:'Logged in', data:data.map(d=>d.logged_in_today), backgroundColor:'#bbf7d0', borderColor:'#22c55e', borderWidth:1.5, borderRadius:4},
+          {label:'Not connected', data:data.map(d=>d.total_employees-d.logged_in_today), backgroundColor:'#f3f4f6', borderColor:'#9ca3af', borderWidth:1.5, borderRadius:4},
+        ]},
+      options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{labels:{font:{size:11},boxWidth:10}}},
+        scales:{x:{stacked:true,grid:{display:false},ticks:{font:{size:11}}},y:{stacked:true,beginAtZero:true,grid:{color:'rgba(0,0,0,0.04)'},ticks:{font:{size:11}}}}}
+    });
+    chartCache.rollupRate = new Chart(document.getElementById('rollup-rate'), {
+      type: 'bar', indexAxis: 'y',
+      data: { labels: data.map(d=>d.group_name||'?'),
+        datasets:[{label:'Login %', data:data.map(d=>d.total_employees>0?Math.round(d.logged_in_today/d.total_employees*100):0),
+          backgroundColor: data.map(d=>{ const r=d.total_employees>0?d.logged_in_today/d.total_employees:0; return r>0.7?'#bbf7d0':r>0.4?'#fef3e6':'#fde8e8'; }),
+          borderColor: data.map(d=>{ const r=d.total_employees>0?d.logged_in_today/d.total_employees:0; return r>0.7?'#22c55e':r>0.4?'#f59e0b':'#ef4444'; }),
+          borderWidth:1.5, borderRadius:4}]},
+      options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},
+        scales:{x:{beginAtZero:true,max:100,ticks:{callback:v=>v+'%',font:{size:11}},grid:{color:'rgba(0,0,0,0.04)'}},y:{grid:{display:false},ticks:{font:{size:11}}}}}
+    });
+  }
+}
+
+function renderActEvents(el, data) {
+  el.innerHTML = `
+  <div class="tbl-wrap"><table>
+    <tr><th>Time</th><th>Employee</th><th>Dept</th><th>Team</th><th>Event</th><th>IP address</th></tr>
+    ${data.length ? data.slice(0,200).map(e=>`<tr>
+      <td style="font-family:monospace;font-size:11px;color:var(--txt3)">${e.event_time?.slice(0,19).replace('T',' ')}</td>
+      <td><div style="display:flex;align-items:center;gap:6px">${avDiv({initials:(e.emp_name||'?').split(' ').map(w=>w[0]).join('').slice(0,2),av_bg:e.av_bg||'#e6f2fb',av_color:e.av_color||'#004e8c'},22)}${e.emp_name||e.entra_id||'Unknown'}</div></td>
+      <td style="font-size:12px">${e.dept||'—'}</td>
+      <td style="font-size:12px;color:var(--txt3)">${e.team||'—'}</td>
+      <td><span class="pill ${e.event_type==='SignIn'?'pill-green':'pill-gray'}">${e.event_type}</span></td>
+      <td style="font-family:monospace;font-size:11px;color:var(--txt3)">${e.ip_address||'—'}</td>
+    </tr>`).join('') : '<tr><td colspan="6" style="text-align:center;color:var(--txt2);padding:20px">No events for this date/filter.</td></tr>'}
   </table></div>`;
 }
 

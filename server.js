@@ -63,15 +63,18 @@ function generatePKCE() {
 
 // ── Microsoft SSO: exchange auth code for user info ───────────────────────────
 async function exchangeMsftCode(code, redirectUri, cfg, codeVerifier) {
-  // Public client + PKCE: do NOT send client_secret — Azure rejects it
+  // Confidential client (has client_secret) + PKCE:
+  // Azure requires BOTH client_secret AND code_verifier together.
+  // Public client (no secret): send code_verifier only.
   const params = {
     grant_type:    'authorization_code',
     client_id:     cfg.client_id,
     code,
     redirect_uri:  redirectUri,
     scope:         'openid profile email User.Read',
-    code_verifier: codeVerifier || '',
   };
+  if (codeVerifier)      params.code_verifier = codeVerifier;
+  if (cfg.client_secret) params.client_secret  = cfg.client_secret;
   const body = new URLSearchParams(params).toString();
   return new Promise((resolve, reject) => {
     const opts = {
@@ -505,7 +508,9 @@ const server = http.createServer(async (req, res) => {
     try {
       const result = await entra.testConnection(cfg);
       return json(res, 200, result);
-    } catch (e) { return json(res, 400, { error: e.message }); }
+    } catch (e) {
+      return json(res, 400, { error: e.message });
+    }
   }
   if (pathname === '/api/entra/sync' && method === 'POST') {
     const emp = requireAuth(req, res); if (!emp) return;

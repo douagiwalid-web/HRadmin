@@ -510,137 +510,115 @@ const Q = {
       .run(empId||null, entraId||null, type, time, ip||null, raw ? JSON.stringify(raw) : null);
   },
 
-  // Full 24h per-user session analysis
-  // For each employee returns: first_login, last_seen, all sign-in/out events,
-  // computed active_minutes, idle_minutes, offline_minutes, current status
+  // Full 24h per-user session analysis with Teams presence
   getActivity24h: (filters={}) => {
     const date   = filters.date || new Date().toISOString().slice(0, 10);
     const idleThreshold = parseInt(Q.getSetting('idle_threshold_min') || '15');
 
-    // Get all employees matching filters
-    let empSql = `SELECT e.*, c.weekends, c.holidays FROM employees e LEFT JOIN calendars c ON e.cal_id=c.id WHERE e.active=1`;
+    let empSql = `SELECT e.*, c.weekends, c.holidays,
+      ep.availability as teams_availability, ep.activity as teams_activity, ep.synced_at as presence_synced_at
+      FROM employees e
+      LEFT JOIN calendars c ON e.cal_id=c.id
+      LEFT JOIN (SELECT * FROM employee_presence) ep ON ep.employee_id=e.id
+      WHERE e.active=1`;
     const empParams = [];
-    if (filters.dept) { empSql += ' AND e.dept=?'; empParams.push(filters.dept); }
-    if (filters.team) { empSql += ' AND e.team=?'; empParams.push(filters.team); }
-    if (filters.employeeId) { empSql += ' AND e.id=?'; empParams.push(filters.employeeId); }
+    if (filters.dept)       { empSql += ' AND e.dept=?'; empParams.push(filters.dept); }
+    if (filters.team)       { empSql += ' AND e.team=?'; empParams.push(filters.team); }
+    if (filters.employeeId) { empSql += ' AND e.id=?';   empParams.push(filters.employeeId); }
     empSql += ' ORDER BY e.name';
     const employees = db.prepare(empSql).all(...empParams);
 
-    // Get all sign-in events for this date
     const events = db.prepare(
       `SELECT al.employee_id, al.event_type, al.event_time, al.ip_address
-       FROM activity_log al
-       WHERE date(al.event_time) = ?
-       ORDER BY al.employee_id, al.event_time ASC`
+       FROM activity_log al WHERE date(al.event_time)=? ORDER BY al.employee_id, al.event_time ASC`
     ).all(date);
 
-    // Get approved leave today
     const onLeave = new Set(
-      db.prepare(
-        `SELECT DISTINCT employee_id FROM leave_requests
-         WHERE status='approved' AND from_date <= ? AND to_date >= ?`
-      ).all(date, date).map(r => r.employee_id)
+      db.prepare(`SELECT DISTINCT employee_id FROM leave_requests WHERE status='approved' AND from_date<=? AND to_date>=?`)
+        .all(date, date).map(r => r.employee_id)
     );
 
-    // Get public holidays for today per calendar
     const isHoliday = (emp) => {
       if (!emp.holidays) return false;
-      const holidays = typeof emp.holidays === 'string' ? JSON.parse(emp.holidays) : emp.holidays;
+      const holidays = typeof emp.holidays === 'string' ? JSON.parse(emp.holidays) : (emp.holidays || []);
       const MMAP = {Jan:'01',Feb:'02',Mar:'03',Apr:'04',May:'05',Jun:'06',Jul:'07',Aug:'08',Sep:'09',Oct:'10',Nov:'11',Dec:'12'};
-      const mmdd = date.slice(5); // MM-DD
-      return holidays.some(h => {
-        const [mon, day] = h.trim().split(' ');
-        return `${MMAP[mon]}-${String(day).padStart(2,'0')}` === mmdd;
-      });
+      const mmdd = date.slice(5);
+      return holidays.some(h => { const [mon,day]=h.trim().split(' '); return `${MMAP[mon]}-${String(day).padStart(2,'0')}` === mmdd; });
     };
 
-    const isWeekend = (emp, dateStr) => {
-      const dow = new Date(dateStr).getDay();
+    const isWeekend = (emp, d) => {
+      const dow = new Date(d + 'T12:00:00Z').getDay();
       const wk = emp.weekends || 'Sat-Sun';
-      if (wk === 'Fri-Sat') return dow === 5 || dow === 6;
-      if (wk === 'Fri')     return dow === 5;
-      return dow === 0 || dow === 6;
+      if (wk==='Fri-Sat') return dow===5||dow===6;
+      if (wk==='Fri')     return dow===5;
+      return dow===0||dow===6;
     };
 
-    const nowUtc = new Date().toISOString();
-    const dayStart = `${date}T00:00:00.000Z`;
-    const dayEnd   = nowUtc < `${date}T23:59:59.999Z` ? nowUtc : `${date}T23:59:59.999Z`;
+    const nowMs = Date.now();
+    const dayEnd = nowMs < new Date(date+'T23:59:59.999Z').getTime() ? new Date().toISOString() : date+'T23:59:59.999Z';
+    const idleMs = idleThreshold * 60 * 1000;
 
-    // Build per-employee results
-    const result = employees.map(emp => {
-      const empEvents = events.filter(e => e.employee_id === emp.id)
-        .sort((a, b) => a.event_time.localeCompare(b.event_time));
+    return employees.map(emp => {
+      const empEvents = events.filter(e => e.employee_id === emp.id);
+      const signIns   = empEvents.filter(e => e.event_type === 'SignIn');
 
-      // Compute sessions: each SignIn starts a session, next SignOut or next SignIn ends it
+      // Build sessions
       const sessions = [];
-      let openSession = null;
+      let open = null;
       for (const ev of empEvents) {
         if (ev.event_type === 'SignIn') {
-          if (openSession) { openSession.end = ev.event_time; sessions.push({...openSession}); }
-          openSession = { start: ev.event_time, end: null, ip: ev.ip_address };
-        } else if (ev.event_type === 'SignOut' && openSession) {
-          openSession.end = ev.event_time; sessions.push({...openSession}); openSession = null;
+          if (open) { open.end = ev.event_time; sessions.push({...open}); }
+          open = { start: ev.event_time, end: null, ip: ev.ip_address };
+        } else if (ev.event_type === 'SignOut' && open) {
+          open.end = ev.event_time; sessions.push({...open}); open = null;
         }
       }
-      if (openSession) { openSession.end = dayEnd; sessions.push({...openSession}); }
+      if (open) { open.end = dayEnd; sessions.push({...open}); }
 
-      // Compute active minutes from sessions
-      let activeMs = 0;
-      sessions.forEach(s => {
-        const start = new Date(s.start).getTime();
-        const end   = new Date(s.end || dayEnd).getTime();
-        if (end > start) activeMs += (end - start);
-      });
+      const activeMs = sessions.reduce((s, sess) => {
+        const start = new Date(sess.start).getTime();
+        const end   = new Date(sess.end || dayEnd).getTime();
+        return s + Math.max(0, end - start);
+      }, 0);
       const activeMin = Math.round(activeMs / 60000);
 
-      // Idle = gaps between sessions > idleThreshold (user signed in but intermittent)
-      // We consider the entire logged-in window as active; idle is computed by the
-      // Entra idle signals (future: use interactive sign-ins)
-      // For now: offline = total work day - active
-      const workDayStart = new Date(`${date}T06:00:00.000Z`);
-      const workDayEnd   = new Date(dayEnd);
-      const elapsedWorkMin = Math.max(0, Math.round((workDayEnd - workDayStart) / 60000));
-      const offlineMin = Math.max(0, elapsedWorkMin - activeMin);
+      const workStart = new Date(date + 'T06:00:00.000Z').getTime();
+      const elapsed   = Math.max(0, Math.round((Math.min(nowMs, new Date(date+'T18:00:00.000Z').getTime()) - workStart) / 60000));
+      const offlineMin = Math.max(0, elapsed - activeMin);
 
-      // Current status
-      const lastEvent = empEvents[empEvents.length - 1];
-      const msSinceLast = lastEvent ? (Date.now() - new Date(lastEvent.event_time).getTime()) : Infinity;
-      let status = 'offline';
-      if (onLeave.has(emp.id)) {
-        status = 'on_leave';
-      } else if (isHoliday(emp)) {
-        status = 'holiday';
-      } else if (isWeekend(emp, date)) {
-        status = 'weekend';
-      } else if (openSession || (lastEvent?.event_type === 'SignIn' && msSinceLast < idleThreshold * 60000 * 4)) {
-        status = msSinceLast > idleThreshold * 60000 ? 'idle' : 'active';
-      }
+      const lastSignIn = signIns[signIns.length - 1];
+      const msSinceLast = lastSignIn ? nowMs - new Date(lastSignIn.event_time).getTime() : null;
+
+      const status = require('./entra').unifyStatus({
+        hasSignInToday:    signIns.length > 0,
+        msSinceLastSignIn: msSinceLast,
+        teamsAvailability: emp.teams_availability,
+        teamsActivity:     emp.teams_activity,
+        isOnLeave:         onLeave.has(emp.id),
+        isHoliday:         isHoliday(emp),
+        isWeekend:         isWeekend(emp, date),
+        idleThresholdMs:   idleMs,
+      });
 
       return {
-        id:           emp.id,
-        name:         emp.name,
-        initials:     emp.initials,
-        dept:         emp.dept || '',
-        team:         emp.team || '',
-        av_bg:        emp.av_bg,
-        av_color:     emp.av_color,
-        title:        emp.title || '',
+        id: emp.id, name: emp.name, initials: emp.initials,
+        dept: emp.dept||'', team: emp.team||'', title: emp.title||'',
+        av_bg: emp.av_bg, av_color: emp.av_color,
         status,
-        first_login:  empEvents.find(e => e.event_type === 'SignIn')?.event_time || null,
-        last_seen:    lastEvent?.event_time || null,
-        last_ip:      lastEvent?.ip_address || null,
-        sessions,
-        session_count: sessions.length,
-        active_min:   activeMin,
-        offline_min:  offlineMin,
-        events:       empEvents,
-        on_leave:     onLeave.has(emp.id),
-        is_holiday:   isHoliday(emp),
-        is_weekend:   isWeekend(emp, date),
+        teams_availability: emp.teams_availability || null,
+        teams_activity:     emp.teams_activity || null,
+        presence_synced_at: emp.presence_synced_at || null,
+        first_login:    signIns[0]?.event_time || null,
+        last_seen:      lastSignIn?.event_time || null,
+        last_ip:        lastSignIn?.ip_address || null,
+        sessions, session_count: sessions.length,
+        active_min: activeMin, offline_min: offlineMin,
+        events: empEvents,
+        on_leave: onLeave.has(emp.id),
+        is_holiday: isHoliday(emp),
+        is_weekend: isWeekend(emp, date),
       };
     });
-
-    return result;
   },
 
   // Department/team rollup for a date
@@ -661,54 +639,47 @@ const Q = {
     `).all(date);
   },
 
-  // Live now stats
+  // Live now stats — combines sign-in logs + Teams presence
   getLiveStats: () => {
     const today = new Date().toISOString().slice(0,10);
     const idleThreshold = parseInt(Q.getSetting('idle_threshold_min') || '15');
     const idleCutoff = new Date(Date.now() - idleThreshold * 60000).toISOString();
 
-    const total = db.prepare('SELECT COUNT(*) as c FROM employees WHERE active=1').get().c;
+    const total   = db.prepare('SELECT COUNT(*) as c FROM employees WHERE active=1').get().c;
+    const onLeave = db.prepare(`SELECT COUNT(DISTINCT employee_id) as c FROM leave_requests WHERE status='approved' AND from_date<=? AND to_date>=?`).get(today, today).c;
 
-    const onLeave = db.prepare(
-      `SELECT COUNT(DISTINCT employee_id) as c FROM leave_requests
-       WHERE status='approved' AND from_date<=? AND to_date>=?`
-    ).get(today, today).c;
+    // Sign-in based counts
+    const activeNow = db.prepare(`SELECT COUNT(DISTINCT employee_id) as c FROM activity_log WHERE event_type='SignIn' AND event_time>=? AND date(event_time)=?`).get(idleCutoff, today).c;
+    const loggedInToday = db.prepare(`SELECT COUNT(DISTINCT employee_id) as c FROM activity_log WHERE event_type='SignIn' AND date(event_time)=?`).get(today).c;
 
-    // Active = signed in and last event within idle threshold
-    const recentSignIns = db.prepare(`
-      SELECT COUNT(DISTINCT employee_id) as c FROM activity_log
-      WHERE event_type='SignIn' AND event_time >= ? AND date(event_time)=?
-    `).get(idleCutoff, today).c;
+    // Teams presence counts (if presence table exists and has recent data)
+    let teamsActive = 0, teamsIdle = 0, teamsOffline = 0, teamsDnd = 0;
+    try {
+      const presRows = db.prepare(`SELECT availability FROM employee_presence WHERE availability IS NOT NULL`).all();
+      presRows.forEach(p => {
+        const av = (p.availability || '').toLowerCase();
+        if (['available','busy','inacall','inaconferencecall','inameeting'].includes(av)) teamsActive++;
+        else if (['away','berightback'].includes(av)) teamsIdle++;
+        else if (['offline','presenceunknown','offwork'].includes(av)) teamsOffline++;
+        else if (['donotdisturb','presenting'].includes(av)) teamsDnd++;
+      });
+    } catch {}
 
-    // Idle = signed in but last event older than threshold (still within workday)
-    const idleUsers = db.prepare(`
-      SELECT COUNT(DISTINCT a1.employee_id) as c
-      FROM activity_log a1
-      WHERE a1.event_type='SignIn' AND date(a1.event_time)=?
-        AND a1.event_time < ?
-        AND NOT EXISTS (
-          SELECT 1 FROM activity_log a2
-          WHERE a2.employee_id=a1.employee_id AND a2.event_type='SignIn' AND a2.event_time >= ?
-        )
-        AND NOT EXISTS (
-          SELECT 1 FROM activity_log a3
-          WHERE a3.employee_id=a1.employee_id AND a3.event_type='SignOut'
-            AND a3.event_time > a1.event_time
-        )
-    `).get(today, idleCutoff, idleCutoff).c;
-
-    const loggedInToday = db.prepare(
-      `SELECT COUNT(DISTINCT employee_id) as c FROM activity_log WHERE event_type='SignIn' AND date(event_time)=?`
-    ).get(today).c;
+    const hasPresence = (teamsActive + teamsIdle + teamsOffline + teamsDnd) > 0;
 
     return {
       total,
-      on_leave:      onLeave,
-      active_now:    recentSignIns,
-      idle_now:      idleUsers,
-      logged_in_today: loggedInToday,
-      never_logged_today: total - onLeave - loggedInToday,
+      on_leave:          onLeave,
+      active_now:        hasPresence ? teamsActive : activeNow,
+      idle_now:          hasPresence ? teamsIdle : Math.max(0, loggedInToday - activeNow),
+      do_not_disturb:    teamsDnd,
+      logged_in_today:   loggedInToday,
       offline_not_leave: Math.max(0, total - onLeave - loggedInToday),
+      has_presence_data: hasPresence,
+      teams_active:      teamsActive,
+      teams_idle:        teamsIdle,
+      teams_dnd:         teamsDnd,
+      teams_offline:     teamsOffline,
     };
   },
 

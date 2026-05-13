@@ -106,6 +106,14 @@ async function getMsftUserInfo(accessToken) {
 
 const MIME = { '.html':'text/html','.css':'text/css','.js':'application/javascript','.json':'application/json','.ico':'image/x-icon','.png':'image/png' };
 
+// Gender name sets — built once at startup, used by /api/hr-insights
+const GENDER_FEMALE = new Set(['ghaida', 'houwayda', 'kana', 'mariko', 'mayssa', 'ons','molka', 'nanya', 'pam_shiseido', 'rahma', 'raoudha', 'salwa', 'sarra', 'semah', 'shalaka', 'sondos', 'taeko', 'yassmine', 'yuuna','amira','amina', 'amani','amel','asma','beya','chahira','dhouha','emna','fatima','fatma','ghada','hajer','hana','houda','ikram','imen','ines','jihen','khaoula','latifa','leila','lina','mabrouka','maissa','mariem','meriem','mouna','nadia','najla','narjes','nesrine','nour','doniez','dorsaf','eya','nouha','olfa','rania','rim','rima','safa','sahar','salma','sana','sara','sarah','sirine','sonia','wafa','wiem','yasmine','yousra','zahra','zaineb','zina','zohra','hind','nora','noura','maha','dina','randa','rana','jihan','heba','dalia','maya','mira','luna','layla','laila','nada','mona','hala','rita','roula','samira','siham','soumaya','souad','rajaa','kaoutar','imane','ilham','hanane','hasna','ghizlane','fadwa','chaima','assia','asmaa','aisha','aicha','aida','zara','zineb','widad','oumaima','nabila','mounya','loubna','lilia','khadija','jihane','jamila','hiba','fatna','farida','fatiha','dounia','dalila','chama','bouchra','asmae','priya','maria','sarah','emma','julia','lina','diana','nina','elena','anna','lisa','sophie','claire','alice','julie','marie','camille','lea','chloe','lucie','manon','elena','irina','olga','natasha','svetlana','jennifer','jessica','ashley','amanda','megan','lauren','kelly','rachel','samantha','nicole',
+  // Japanese female names
+  'aiko','akane','akemi','aki','akiko','akira','amane','ami','asahi','asuka','ayaka','ayako','ayame','ayane','ayano','ayumi','azusa','chie','chieko','chika','chikako','chisato','chizu','eiko','emi','emiko','eri','erika','eriko','fujiko','fumi','fumie','fumiko','hana','hanako','haruka','haruki','harumi','haruno','haruto','hayami','hikari','hikaru','hina','hinako','hiroko','hisako','hitomi','honami','ichika','itsuki','izumi','junko','kaede','kanae','kanako','kanon','kaori','kaoru','kasumi','kazue','kazuko','keiko','kiko','kimiko','kirara','kiriko','kiyomi','koharu','kotomi','kotone','kumiko','kumi','kuniko','kurumi','kyoko','machiko','madoka','mai','maiko','maiko','makiko','mami','mamiko','manami','mao','masako','matsuri','mayuko','megumi','miharu','mihoko','mika','mikako','mikoto','miku','minako','minori','mirei','misaki','misato','mitsuki','miwa','miyako','miyuki','mizuki','moe','moeko','momoka','momoko','nana','nanami','naoko','naomi','natsuki','natsuko','natsumi','nobuko','nodoka','noriko','reika','reiko','reina','rena','rina','rio','rion','risa','sachiko','saki','sakura','satsuki','sayaka','sayuri','setsuko','shiho','shika','shizuka','sumire','suzume','tamako','tamami','teruko','tomoe','tomoko','tomomi','tsukiko','tsukimi','tsukasa','umi','wakana','waka','yoko','yoriko','yoshiko','yukako','yukari','yuki','yukiko','yuko','yumi','yumiko','yuna','yuri','yurika','yurina','yuriko','yuuko']);
+const GENDER_MALE   = new Set(['fernando-guest','adem', 'alex', 'amrikar', 'bilel', 'david', 'duchaufour', 'elyes', 'feres', 'fernando', 'firas', 'gaith', 'ghazi', 'hachem', 'hamdy', 'hassen', 'haykel', 'hedi', 'hesham', 'hichem', 'hiroyuki', 'houssem', 'imed', 'islem', 'iyed', 'jalel', 'james', 'jaouher', 'jawaad', 'kal', 'kang', 'karam', 'kerem', 'kido', 'kishore', 'kishore.thomas', 'laroussi', 'layth', 'louay', 'luis', 'mabrouki', 'marouen', 'marwen', 'matthew', 'med', 'medamine', 'moetez', 'mohamedali', 'mones', 'morita', 'mouhamed', 'nadhir', 'nadim', 'nicholas', 'nidhal', 'noorallah', 'radhouan', 'rajshekhar', 'rayen', 'razi', 'rchid', 'saber', 'salim', 'sami', 'seifallah', 'seifeddine', 'skander', 'slim', 'sofiene', 'sousuke', 'syed', 'tarek', 'tetsumin', 'tetsuya', 'tom', 'toshiharu', 'wael', 'wahib', 'walid', 'wassim', 'woodson', 'xavier', 'yanseiji', 'yassine', 'yessin', 'youssef', 'zied','abdelhak','abdelaziz','abdelkader','abdelmalek','abderrahim','abderrahmane','abdessalam','adil','adnane','adnan','ahmed','ali','amine','anter', 'amenallah', 'amir','anis','aymen','aziz','achraf','achref','belhassen','bilal','brahim','chakib','driss','daly','dhia','farid','hamid','hamza','hani','hassan','hatim','hicham','houssam','iliyas','ilyes','iskander','ismail','issa','jawad','kamal','kamel','karim','khaled','khalid','latif','mahdi','marouane','mehdi','mohamed','mohammed','mouad','mourad','moussa','mustapha','nabil','nassim','nizar','omar','oussama','rachid','rafik","rami","redouane","riadh","saad","samir","sami","slim","sofiene","soufiane","tarek","tarak","tariq","tawfiq","walid","wassim","yacine","yasser","yassine","youssef","zakaria","zied","anas","bilel","fares","ghassen","hatem","helmi","hichem","jaber","jamel","jawher","kaies","khalil","larbi","maher","malek","mansour","marwen","mohsen","mondher","mongi","mounir","nader","nadhir","oualid","ramzi","ridha","salah","salim","samy","sayed","selim","skander","souheil","taher","thameur","wajdi","wissem","yousri","zouhaier","alex","james","tom","david","luis","michael","john","robert","william","daniel","mark","paul","peter","thomas","andrew","george","kevin","brian","steven","edward","richard","charles","joseph","christopher","matthew","anthony","donald","kenneth","joshua","timothy","ryan","eric","jason","jeffrey','frank','gary','stephen','patrick','raymond','scott','jack','dennis','walter','henry','arthur','joe','juan','carlos','miguel','carlos','alejandro',
+  // Japanese male names
+  'akihiko','akihiro','akio','akira','akito','atsushi','daichi','daiki','daisuke','fumihiro','fumio','genki','goro','hideo','hiroki','hiroshi','hiroto','hiroya','hisashi','hisato','isamu','isao','jiro','junichi','junpei','junsuke','katsuhiko','katsuhiro','katsuya','kazuki','kazuma','kazuya','keigo','keiji','keiki','keisuke','kenji','kenta','kentaro','kenzo','koji','kotaro','koya','kuniaki','kunio','makoto','masahiro','masaki','masanobu','masaru','masashi','masato','masayuki','minoru','naoki','naoto','naoya','noboru','nobuhiro','nobuo','nobuyuki','noriaki','norio','noriyuki','osamu','raito','reiji','reito','ren','riku','rinto','ryo','ryohei','ryoji','ryosuke','ryota','ryoto','ryuichi','ryuji','ryunosuke','satoru','satoshi','seiji','seiya','shingo','shinji','shinsuke','shintaro','shiro','shota','shuhei','shun','shunsuke','soichiro','sota','subaru','suguru','taichi','taiga','taiki','taishi','taito','takahiro','takashi','takato','takayuki','takehiro','takeshi','takuya','takuma','takuro','tomohiro','tomoki','tomoya','toshiaki','toshihiko','toshihiro','toshiki','toshio','toshiyuki','yasuhiro','yasuo','yasushi','yasuyuki','yoshihiko','yoshihiro','yoshiki','yoshio','yoshitaka','yoshito','yudai','yuichi','yuji','yukihiro','yukio','yukito','yusuke','yuto','yuya','yuuki','yuuma','hayato','haruki','rento','haruto','sosuke','hinata','kohei','issei']);
+
 // ── Router ────────────────────────────────────────────────────────────────────
 const server = http.createServer(async (req, res) => {
   res.setHeader('Access-Control-Allow-Origin', '*');
@@ -430,12 +438,16 @@ const server = http.createServer(async (req, res) => {
     if (method === 'GET') {
       const filters = {};
       // Employee: own leaves only
-      if (emp.role === 'employee') filters.employeeId = emp.id;
-      // Manager: their dept + optional status filter
-      if (emp.role === 'manager') {
-        const mgr = db.prepare('SELECT dept FROM employees WHERE id=?').get(emp.id);
-        if (mgr?.dept) filters.managerDept = mgr.dept;
+      if (emp.role === 'employee') {
+        filters.employeeId = emp.id;
       }
+      // Manager: only direct reports (with dept fallback)
+      if (emp.role === 'manager') {
+        const mgrRecord = db.prepare('SELECT dept FROM employees WHERE id=?').get(emp.id);
+        filters.managerId   = emp.id;
+        filters.managerDept = mgrRecord?.dept || null;
+      }
+      // HR and director: all (no filter added)
       if (parsed.query.status) filters.status = parsed.query.status;
       if (parsed.query.dept)   filters.dept   = parsed.query.dept;
       if (parsed.query.team)   filters.team   = parsed.query.team;
@@ -452,6 +464,24 @@ const server = http.createServer(async (req, res) => {
     const reqId = parts[3], action = parts[4];
     const emp = requireAuth(req, res); if (!emp) return;
     if (!requireRole(emp, res, 'manager','hr','director')) return;
+
+    // Manager scope guard: manager can only approve their own direct reports' requests
+    if (emp.role === 'manager') {
+      const leaveReq = db.prepare('SELECT employee_id FROM leave_requests WHERE id=?').get(reqId);
+      if (leaveReq) {
+        const directReports = db.prepare('SELECT id FROM employees WHERE manager_id=? AND active=1').all(emp.id).map(r=>r.id);
+        // Fallback: dept match if no direct reports assigned
+        const inScope = directReports.length > 0
+          ? directReports.includes(leaveReq.employee_id)
+          : (() => {
+              const mgrDept = db.prepare('SELECT dept FROM employees WHERE id=?').get(emp.id)?.dept;
+              const empDept = db.prepare('SELECT dept FROM employees WHERE id=?').get(leaveReq.employee_id)?.dept;
+              return mgrDept && mgrDept === empDept;
+            })();
+        if (!inScope) return json(res, 403, { error: 'This employee is not in your team' });
+      }
+    }
+
     const body = await readBody(req);
     try {
       if (action === 'approve') Q.approveLeaveRequest(reqId, emp.id, body.comment, emp.name);
@@ -460,7 +490,137 @@ const server = http.createServer(async (req, res) => {
     } catch (e) { return json(res, 400, { error: e.message }); }
   }
 
-  // ── Activity endpoints ────────────────────────────────────────────────────────
+  // ── HR Insights ───────────────────────────────────────────────────────────────
+  if (pathname === '/api/hr-insights') {
+    const emp = requireAuth(req, res); if (!emp) return;
+    if (!requireRole(emp, res, 'hr', 'director')) return;
+    const today = new Date().toISOString().slice(0, 10);
+    const year  = new Date().getFullYear();
+
+    // Base filter — exclude employees with no company assigned
+    const BASE = "active=1 AND company IS NOT NULL AND company != ''";
+
+    // Headcount (company-assigned only)
+    const total     = db.prepare(`SELECT COUNT(*) as c FROM employees WHERE ${BASE}`).get().c;
+    const excluded  = db.prepare("SELECT COUNT(*) as c FROM employees WHERE active=1 AND (company IS NULL OR company='')").get().c;
+    const byRole    = db.prepare(`SELECT role, COUNT(*) as c FROM employees WHERE ${BASE} GROUP BY role ORDER BY c DESC`).all();
+    const byDept    = db.prepare(`SELECT dept, COUNT(*) as c FROM employees WHERE ${BASE} AND dept IS NOT NULL AND dept!='' GROUP BY dept ORDER BY c DESC`).all();
+    const byTeam    = db.prepare(`SELECT team, COUNT(*) as c FROM employees WHERE ${BASE} AND team IS NOT NULL AND team!='' GROUP BY team ORDER BY c DESC`).all();
+    const byCompany = db.prepare(`SELECT company, COUNT(*) as c FROM employees WHERE ${BASE} GROUP BY company ORDER BY c DESC`).all();
+
+    // Manager span of control (company-assigned only)
+    const spans    = db.prepare(`SELECT manager_id, COUNT(*) as c FROM employees WHERE ${BASE} AND manager_id IS NOT NULL GROUP BY manager_id`).all();
+    const avgSpan  = spans.length ? (spans.reduce((s,r)=>s+r.c,0)/spans.length).toFixed(1) : 0;
+    const maxSpan  = spans.length ? Math.max(...spans.map(r=>r.c)) : 0;
+    const unmanaged= db.prepare(`SELECT COUNT(*) as c FROM employees WHERE ${BASE} AND manager_id IS NULL AND role='employee'`).get().c;
+
+    // Coverage gaps (company-assigned only)
+    const noCal    = db.prepare(`SELECT COUNT(*) as c FROM employees WHERE ${BASE} AND (cal_id IS NULL OR cal_id='')`).get().c;
+    const noCompany= excluded; // already computed above
+
+    // Leave analytics — only for employees with a company
+    const leaveByType = db.prepare(`
+      SELECT lt.name, COUNT(*) as c, SUM(lr.days) as total_days
+      FROM leave_requests lr
+      JOIN leave_types lt ON lr.leave_type_id=lt.id
+      JOIN employees e ON lr.employee_id=e.id
+      WHERE lr.status='approved' AND e.company IS NOT NULL AND e.company!=''
+      GROUP BY lt.id ORDER BY total_days DESC`).all();
+
+    const leaveByDept = db.prepare(`
+      SELECT e.dept, COUNT(*) as c, SUM(lr.days) as total_days
+      FROM leave_requests lr
+      JOIN employees e ON lr.employee_id=e.id
+      WHERE lr.status='approved' AND e.dept IS NOT NULL
+        AND e.company IS NOT NULL AND e.company!=''
+      GROUP BY e.dept ORDER BY total_days DESC`).all();
+
+    const onLeaveToday = db.prepare(`
+      SELECT COUNT(DISTINCT lr.employee_id) as c
+      FROM leave_requests lr
+      JOIN employees e ON lr.employee_id=e.id
+      WHERE lr.status='approved' AND lr.from_date<=? AND lr.to_date>=?
+        AND e.company IS NOT NULL AND e.company!=''`).get(today, today).c;
+
+    const pendingLeave = db.prepare(`
+      SELECT COUNT(*) as c FROM leave_requests lr
+      JOIN employees e ON lr.employee_id=e.id
+      WHERE lr.status NOT IN ('approved','rejected')
+        AND e.company IS NOT NULL AND e.company!=''`).get().c;
+
+    const rejectedRate = db.prepare(`
+      SELECT COUNT(*) as c FROM leave_requests lr
+      JOIN employees e ON lr.employee_id=e.id
+      WHERE lr.status='rejected' AND e.company IS NOT NULL AND e.company!=''`).get().c;
+
+    const totalReqs = db.prepare(`
+      SELECT COUNT(*) as c FROM leave_requests lr
+      JOIN employees e ON lr.employee_id=e.id
+      WHERE e.company IS NOT NULL AND e.company!=''`).get().c;
+
+    // Avg leave days used per employee this year (company-assigned only)
+    const avgUsed = db.prepare(`
+      SELECT AVG(lb.used) as avg FROM leave_balances lb
+      JOIN employees e ON lb.employee_id=e.id
+      WHERE lb.year=? AND lb.used>0 AND e.company IS NOT NULL AND e.company!=''`).get(year)?.avg?.toFixed(1) || 0;
+
+    // Monthly trend (company-assigned only)
+    const monthlyTrend = db.prepare(`
+      SELECT strftime('%Y-%m', created_at) as month, COUNT(*) as joined
+      FROM employees WHERE ${BASE} GROUP BY month ORDER BY month`).all();
+
+    // Monthly leave trend (company-assigned only)
+    const leaveTrend = db.prepare(`
+      SELECT strftime('%Y-%m', lr.created_at) as month, COUNT(*) as c
+      FROM leave_requests lr
+      JOIN employees e ON lr.employee_id=e.id
+      WHERE e.company IS NOT NULL AND e.company!=''
+      GROUP BY month ORDER BY month DESC LIMIT 12`).all().reverse();
+
+    // Presence — only for company-assigned employees
+    const presenceCounts = (() => {
+      try {
+        return db.prepare(`
+          SELECT ep.availability, COUNT(*) as c
+          FROM employee_presence ep
+          JOIN employees e ON ep.employee_id=e.id
+          WHERE e.company IS NOT NULL AND e.company!=''
+          GROUP BY ep.availability ORDER BY c DESC`).all();
+      } catch { return []; }
+    })();
+    const activeNow  = presenceCounts.filter(p=>['Available','Busy','InACall','InAConferenceCall','InAMeeting'].includes(p.availability)).reduce((s,r)=>s+r.c,0);
+    const awayNow    = presenceCounts.filter(p=>['Away','BeRightBack'].includes(p.availability)).reduce((s,r)=>s+r.c,0);
+    const offlineNow = presenceCounts.filter(p=>['Offline','PresenceUnknown','OffWork'].includes(p.availability)).reduce((s,r)=>s+r.c,0);
+    const dndNow     = presenceCounts.filter(p=>['DoNotDisturb','Presenting'].includes(p.availability)).reduce((s,r)=>s+r.c,0);
+
+    // Gender (company-assigned only)
+    const genderStats = { male: 0, female: 0, unknown: 0 };
+    db.prepare(`SELECT name FROM employees WHERE ${BASE}`).all().forEach(e => {
+      const first = (e.name||'').trim().split(/\s+/)[0].toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'');
+      if (GENDER_FEMALE.has(first))      genderStats.female++;
+      else if (GENDER_MALE.has(first))   genderStats.male++;
+      else                               genderStats.unknown++;
+    });
+
+    // Balance utilisation (company-assigned only)
+    const balUtil = db.prepare(`
+      SELECT AVG(CASE WHEN lb.entitled>0 THEN CAST(lb.used AS REAL)/lb.entitled*100 ELSE 0 END) as pct
+      FROM leave_balances lb JOIN employees e ON lb.employee_id=e.id
+      WHERE lb.year=? AND e.company IS NOT NULL AND e.company!=''`).get(year)?.pct?.toFixed(1) || 0;
+
+    const topLeaveDesc = leaveByDept[0] || null;
+
+    return json(res, 200, {
+      headcount: { total, excluded, byRole, byDept, byTeam, byCompany, monthlyTrend },
+      management: { managers: byRole.find(r=>r.role==='manager')?.c||0, avgSpan, maxSpan, unmanaged },
+      coverage: { noCal, noCompany },
+      leave: { byType: leaveByType, byDept: leaveByDept, onLeaveToday, pendingLeave, totalReqs, rejectedRate, avgUsed, leaveTrend, balUtil, topLeaveDesc },
+      presence: { activeNow, awayNow, offlineNow, dndNow, total },
+      gender: genderStats,
+    });
+  }
+
+
   if (pathname === '/api/activity') {
     const emp = requireAuth(req, res); if (!emp) return;
     const filters = {};

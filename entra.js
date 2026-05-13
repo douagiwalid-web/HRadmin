@@ -9,7 +9,7 @@ function httpsPost(hostname, path, headers, body) {
     let resp = '';
     const r = https.request(opts, res => { res.on('data', d => resp += d); res.on('end', () => { try { resolve(JSON.parse(resp)); } catch { reject(new Error('JSON parse error')); } }); });
     r.on('error', reject);
-    r.setTimeout(15000, () => { r.destroy(); reject(new Error('Request timeout')); });
+    r.setTimeout(45000, () => { r.destroy(); reject(new Error('Request timeout')); });
     r.write(body); r.end();
   });
 }
@@ -40,7 +40,7 @@ function httpsGet(urlOrPath, accessToken) {
       });
     });
     r.on('error', reject);
-    r.setTimeout(15000, () => { r.destroy(); reject(new Error('Graph API timeout')); });
+    r.setTimeout(45000, () => { r.destroy(); reject(new Error('Graph API timeout')); });
     r.end();
   });
 }
@@ -136,23 +136,35 @@ async function runSync(cfg, broadcast) {
 
   // ── 1. User directory sync ────────────────────────────────────────────────────
   try {
-    // Fetch companyName along with other fields
-    const users = await graphGetAll(token,
-      'users?$select=id,displayName,mail,userPrincipalName,department,jobTitle,companyName&$top=999');
-    log(`Found ${users.length} users in directory`);
+    // Fetch all users with manager expanded inline — single batch call
+    // Use $select on BOTH the main entity and the $expand subquery to keep
+    // response size small. Without $select on manager, Graph returns 100+ fields
+    // per manager object causing pagination timeouts on large directories.
+    let allUsers = [];
+    try {
+      allUsers = await graphGetAll(token,
+        'users?$select=id,displayName,mail,userPrincipalName,department,jobTitle,companyName' +
+        '&$expand=manager($select=id,displayName,mail,userPrincipalName)&$top=999');
+    } catch (expandErr) {
+      log(`⚠ Manager expand failed (${expandErr.message.slice(0,80)}), retrying without manager`, 'warn');
+      allUsers = await graphGetAll(token,
+        'users?$select=id,displayName,mail,userPrincipalName,department,jobTitle,companyName&$top=999');
+    }
+    log(`Found ${allUsers.length} users in directory`);
 
-    // Apply company filter if set (e.g. 'avaxiaTN', '*' = all)
+    // Apply company filter
     const companyFilter = cfg.company_filter || '*';
     const filtered = companyFilter === '*'
-      ? users
-      : users.filter(u => (u.companyName || '').toLowerCase() === companyFilter.toLowerCase());
-    if (companyFilter !== '*') log(`Company filter '${companyFilter}': ${filtered.length} / ${users.length} users match`);
+      ? allUsers
+      : allUsers.filter(u => (u.companyName || '').toLowerCase() === companyFilter.toLowerCase());
+    if (companyFilter !== '*') log(`Company filter '${companyFilter}': ${filtered.length} / ${allUsers.length} users`);
 
     const year = new Date().getFullYear();
     const ltRows = db.prepare('SELECT id, days_per_year FROM leave_types WHERE active=1').all();
     const insertBal = db.prepare('INSERT OR IGNORE INTO leave_balances (employee_id,leave_type_id,year,entitled,accrued,used,adjustment) VALUES (?,?,?,?,?,0,0)');
 
     if (cfg.auto_add_users) {
+      // First pass: insert/update all users (do NOT touch manager_id yet — need all IDs first)
       filtered.forEach(u => {
         const email = u.mail || u.userPrincipalName;
         if (!email) return;
@@ -161,21 +173,71 @@ async function runSync(cfg, broadcast) {
         const company = u.companyName || null;
         let empId;
         if (!existing) {
-          const r = db.prepare('INSERT OR IGNORE INTO employees (entra_id,name,email,initials,dept,title,company,cal_id,role,bal_type,av_bg,av_color) VALUES (?,?,?,?,?,?,?,?,?,?,?,?)')
-            .run(u.id, u.displayName || email, email, ini, u.department || '', u.jobTitle || '',
-              company, cfg.default_cal_id || 'cal-ae', 'employee', 'fixed', '#e6f2fb', '#004e8c');
+          const r = db.prepare(`INSERT OR IGNORE INTO employees
+            (entra_id,name,email,initials,dept,title,company,cal_id,role,bal_type,av_bg,av_color)
+            VALUES (?,?,?,?,?,?,?,?,?,?,?,?)`)
+            .run(u.id, u.displayName || email, email, ini,
+              u.department || '', u.jobTitle || '', company,
+              cfg.default_cal_id || 'cal-ae', 'employee', 'fixed', '#e6f2fb', '#004e8c');
           empId = r.lastInsertRowid;
           usersAdded++;
         } else {
-          db.prepare("UPDATE employees SET entra_id=?,name=?,dept=?,title=?,company=?,updated_at=datetime('now') WHERE email=?")
-            .run(u.id, u.displayName || existing.name, u.department || existing.dept,
-              u.jobTitle || existing.title, company, email);
+          db.prepare(`UPDATE employees SET entra_id=?,name=?,dept=?,title=?,company=?,
+            updated_at=datetime('now') WHERE email=?`)
+            .run(u.id, u.displayName || existing.name,
+              u.department || existing.dept, u.jobTitle || existing.title,
+              company, email);
           empId = existing.id;
           usersUpdated++;
         }
         if (empId) ltRows.forEach(lt => insertBal.run(empId, lt.id, year, lt.days_per_year, lt.days_per_year));
       });
       log(`✓ Users: ${usersAdded} added, ${usersUpdated} updated`);
+
+      // Second pass: set manager_id from the expanded manager object (already fetched, no extra calls)
+      // Look up manager by entra_id first (most reliable), fall back to email
+      const getEmpByEntraId = db.prepare('SELECT * FROM employees WHERE entra_id=? AND active=1 LIMIT 1');
+      let managerLinked = 0, managerNotFound = 0, managerNoObj = 0;
+      const updateManagerId = db.prepare(
+        'UPDATE employees SET manager_id=? WHERE id=? AND (manager_id IS NULL OR manager_id != ?)'
+      );
+      const promoteToManager = db.prepare(
+        "UPDATE employees SET role='manager' WHERE id=? AND role='employee'"
+      );
+
+      filtered.forEach(u => {
+        const email = u.mail || u.userPrincipalName;
+        // manager comes from $expand=manager — nested object on the user
+        const mgrObj = u.manager;
+        if (!mgrObj) { managerNoObj++; return; } // no manager set in Entra for this user
+
+        const empRecord = email ? Q.getEmployeeByEmail(email) : null;
+        if (!empRecord) return;
+
+        // Try to find manager record: by entra_id first, then by email
+        let mgrRecord = null;
+        if (mgrObj.id) {
+          mgrRecord = getEmpByEntraId.get(mgrObj.id);
+        }
+        if (!mgrRecord) {
+          const mgrEmail = mgrObj.mail || mgrObj.userPrincipalName;
+          if (mgrEmail) mgrRecord = Q.getEmployeeByEmail(mgrEmail);
+        }
+
+        if (mgrRecord && mgrRecord.id !== empRecord.id) {
+          updateManagerId.run(mgrRecord.id, empRecord.id, mgrRecord.id);
+          promoteToManager.run(mgrRecord.id);
+          managerLinked++;
+        } else if (!mgrRecord) {
+          managerNotFound++;
+        }
+      });
+
+      const withMgr = filtered.filter(u => u.manager).length;
+      log(`✓ Manager sync: ${withMgr} users have manager set in Entra | ${managerLinked} linked | ${managerNotFound} manager not in DB | ${managerNoObj} no manager set`);
+      if (managerNotFound > 0) {
+        log(`  → ${managerNotFound} managers exist in Entra but not yet in WorkIQ DB — will resolve on next sync`, 'warn');
+      }
     }
   } catch (err) {
     log(`⚠ User sync skipped: ${err.message}`, 'warn');

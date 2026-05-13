@@ -322,9 +322,9 @@ async function checkEntraStatus() {
 // ─── Nav ──────────────────────────────────────────────────────────────────────
 const NAV_DEFS = {
   employee:[{id:'emp-dash',label:'My dashboard'},{id:'my-activity',label:'My activity log'},{id:'apply-leave',label:'Apply for leave'},{id:'my-leaves',label:'My leave requests',badge:'',badgeCls:'nb-a'},{id:'my-calendar',label:'My calendar'}],
-  manager:[{id:'mgr-dash',label:'Team dashboard'},{id:'team-activity',label:'Team activity'},{id:'mgr-approvals',label:'Pending approvals',badge:'',badgeCls:'nb-r'},{id:'my-leaves',label:'Leave history'},{id:'team-calendar',label:'Team calendar'}],
-  hr:[{id:'hr-dash',label:'HR dashboard',sec:'OVERVIEW'},{id:'all-activity',label:'All activity'},{id:'all-leaves',label:'Leave requests',sec:'LEAVE',badge:'',badgeCls:'nb-r'},{id:'leave-types',label:'Leave types'},{id:'approval-rules',label:'Approval rules'},{id:'calendars',label:'Calendar management',sec:'ADMIN'},{id:'cal-assign',label:'Employee assignment'},{id:'leave-balance',label:'Leave balance engine'},{id:'employees',label:'Employee directory'},{id:'departments',label:'Departments & teams'},{id:'system',label:'System settings',sec:'SYSTEM'},{id:'email-settings',label:'Email / SMTP'},{id:'entra-config',label:'Entra ID config'},{id:'audit-log',label:'Audit log'}],
-  director:[{id:'dir-dash',label:'Executive dashboard'},{id:'dir-approvals',label:'Final approvals',badge:'',badgeCls:'nb-r'},{id:'my-leaves',label:'Leave history'},{id:'all-activity',label:'Activity overview'},{id:'reports',label:'Reports'}],
+  manager:[{id:'mgr-dash',label:'Team dashboard'},{id:'team-activity',label:'Team activity'},{id:'mgr-approvals',label:'Pending approvals',badge:'',badgeCls:'nb-r'},{id:'apply-leave',label:'Apply for leave'},{id:'my-leaves',label:'My leaves & team history'},{id:'team-calendar',label:'Team calendar'}],
+  hr:[{id:'hr-dash',label:'HR dashboard',sec:'OVERVIEW'},{id:'all-activity',label:'All activity'},{id:'all-leaves',label:'Leave requests',sec:'LEAVE',badge:'',badgeCls:'nb-r'},{id:'apply-leave',label:'Apply for leave'},{id:'my-leaves',label:'My leave requests'},{id:'leave-types',label:'Leave types'},{id:'approval-rules',label:'Approval rules'},{id:'calendars',label:'Calendar management',sec:'ADMIN'},{id:'cal-assign',label:'Employee assignment'},{id:'leave-balance',label:'Leave balance engine'},{id:'employees',label:'Employee directory'},{id:'departments',label:'Departments & teams'},{id:'system',label:'System settings',sec:'SYSTEM'},{id:'email-settings',label:'Email / SMTP'},{id:'entra-config',label:'Entra ID config'},{id:'audit-log',label:'Audit log'}],
+  director:[{id:'dir-dash',label:'Executive dashboard'},{id:'dir-approvals',label:'Final approvals',badge:'',badgeCls:'nb-r'},{id:'apply-leave',label:'Apply for leave'},{id:'my-leaves',label:'My leave requests'},{id:'all-activity',label:'Activity overview'},{id:'reports',label:'Reports'}],
 };
 const PTITLES = {'emp-dash':'My dashboard','my-activity':'My activity log','apply-leave':'Apply for leave','my-leaves':'My leave requests','my-calendar':'My calendar','mgr-dash':'Team dashboard','team-activity':'Team activity','mgr-approvals':'Pending approvals','team-calendar':'Team calendar','hr-dash':'HR dashboard','all-activity':'Activity overview','all-leaves':'All leave requests','leave-types':'Leave types','approval-rules':'Approval workflows','calendars':'Calendar management','cal-assign':'Employee calendar assignment','leave-balance':'Leave balance engine','employees':'Employee directory','departments':'Departments & teams','system':'System settings','email-settings':'Email / SMTP settings','entra-config':'Entra ID / Azure config','audit-log':'Audit log','dir-dash':'Executive dashboard','dir-approvals':'Final approvals','reports':'Reports'};
 
@@ -527,20 +527,21 @@ async function submitLeave() {
 async function vMyLeaves(el) {
   const isManager  = me.role === 'manager';
   const isDirector = me.role === 'director';
+  const isHR       = me.role === 'hr';
   const reqs = await GET('/leave-requests');
 
-  // Filters for manager/director
-  let filterDept = '', filterTeam = '', filterStatus = '';
-  const depts = isManager||isDirector ? [...new Set(reqs.map(r=>r.dept).filter(Boolean))].sort() : [];
-  const teams = isManager||isDirector ? [...new Set(reqs.map(r=>r.team).filter(Boolean))].sort() : [];
+  // Filters for manager/director/hr
+  const depts = (isManager||isDirector||isHR) ? [...new Set(reqs.map(r=>r.dept).filter(Boolean))].sort() : [];
+  const teams = (isManager||isDirector||isHR) ? [...new Set(reqs.map(r=>r.team).filter(Boolean))].sort() : [];
 
-  const title = isManager ? 'Team leave history' : isDirector ? 'All leave history' : 'My leave requests';
+  // Title: manager/director/hr see their own requests + team, others just own
+  const title = isManager ? 'My leaves & team history' : isDirector||isHR ? 'My leave requests' : 'My leave requests';
 
   el.innerHTML = `
   <div class="sh">
     <div class="st">${title} (${reqs.length})</div>
     <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
-      ${(isManager||isDirector) ? `
+      ${(isManager||isDirector||isHR) ? `
         <select id="lh-dept" style="font-size:12px;padding:4px 8px" onchange="reloadLeaveHistory()">
           <option value="">All departments</option>
           ${depts.map(d=>`<option value="${d}">${d}</option>`).join('')}
@@ -557,7 +558,7 @@ async function vMyLeaves(el) {
           <option value="pending_hr">Pending HR</option>
           <option value="pending_director">Pending director</option>
         </select>` : ''}
-      ${me.role === 'employee' ? `<button class="btn btn-primary" onclick="navigate('apply-leave')">+ New request</button>` : ''}
+      <button class="btn btn-primary" onclick="navigate('apply-leave')">+ New request</button>
     </div>
   </div>
   <div id="leave-history-table"></div>`;
@@ -575,25 +576,26 @@ function renderLeaveHistoryTable(reqs) {
   if (status) filtered = filtered.filter(r => r.status === status);
   // Store all (unfiltered) so showLeaveDetail can look up by ID
   window._reqs = reqs;
-  const isEmployee = me.role === 'employee';
+  // Show employee/dept columns for non-employee roles (they may see others' requests)
+  const showEmpCol = me.role !== 'employee';
   const el = document.getElementById('leave-history-table');
   if (!el) return;
   el.innerHTML = `<div class="tbl-wrap"><table>
     <tr>
       <th>ID</th>
-      ${!isEmployee?'<th>Employee</th><th>Dept</th>':''}
+      ${showEmpCol?'<th>Employee</th><th>Dept</th>':''}
       <th>Type</th><th>Dates</th><th>Days</th><th>Status</th><th>Chain</th><th></th>
     </tr>
     ${filtered.length ? filtered.map(r=>`<tr>
       <td style="font-family:monospace;font-size:11px">${r.id}</td>
-      ${!isEmployee?`<td><div style="display:flex;align-items:center;gap:6px">${avDiv(r,22)}${r.emp_name}</div></td><td style="font-size:12px;color:var(--txt2)">${r.dept||'—'}</td>`:''}
+      ${showEmpCol?`<td><div style="display:flex;align-items:center;gap:6px">${avDiv(r,22)}${r.emp_name}</div></td><td style="font-size:12px;color:var(--txt2)">${r.dept||'—'}</td>`:''}
       <td>${r.type_name}</td>
       <td style="font-size:11px">${r.from_date}→${r.to_date}</td>
       <td>${r.days}d</td>
       <td>${statusPill(r.status)}</td>
       <td>${miniChain(r.approvals)}</td>
       <td><button class="btn" style="font-size:11px;padding:3px 8px" onclick="showLeaveDetail('${r.id}')">View</button></td>
-    </tr>`).join('') : `<tr><td colspan="${isEmployee?7:9}" style="text-align:center;color:var(--txt2);padding:20px">No leave requests found.</td></tr>`}
+    </tr>`).join('') : `<tr><td colspan="${showEmpCol?9:7}" style="text-align:center;color:var(--txt2);padding:20px">No leave requests found.</td></tr>`}
   </table></div>`;
 }
 
@@ -1186,26 +1188,244 @@ async function confirmApproval(id, action) {
 
 // ─── HR dashboard ─────────────────────────────────────────────────────────────
 async function vHRDash(el) {
-  const [emps, reqs, bals] = await Promise.all([GET('/employees'), GET('/leave-requests'), GET('/leave-balances')]);
-  const pending = reqs.filter(r => r.status !== 'approved' && r.status !== 'rejected').length;
+  el.innerHTML = '<div class="loading"><div class="spinner"></div> Loading HR insights…</div>';
+  let d, emps, reqs;
+  try {
+    [d, emps, reqs] = await Promise.all([GET('/hr-insights'), GET('/employees'), GET('/leave-requests')]);
+  } catch(e) {
+    el.innerHTML = `<div class="info-box" style="border-left-color:var(--red);color:var(--red)">Failed to load insights: ${e.message}</div>`;
+    return;
+  }
+
+  const pending  = reqs.filter(r=>!['approved','rejected'].includes(r.status)).length;
+  const approved = reqs.filter(r=>r.status==='approved').length;
+  const rejRate  = d.leave.totalReqs > 0 ? Math.round(d.leave.rejectedRate/d.leave.totalReqs*100) : 0;
+  const COLORS   = ['#3b82f6','#22c55e','#f59e0b','#ef4444','#a855f7','#06b6d4','#f97316','#84cc16','#ec4899','#14b8a6','#8b5cf6','#0ea5e9'];
+
   el.innerHTML = `
-  <div class="metrics-row">
-    <div class="metric"><div class="metric-label">Total employees</div><div class="metric-value">${emps.length}</div></div>
-    <div class="metric"><div class="metric-label">Leave requests</div><div class="metric-value">${reqs.length}</div></div>
-    <div class="metric"><div class="metric-label">Pending action</div><div class="metric-value" style="color:var(--amb)">${pending}</div></div>
-    <div class="metric"><div class="metric-label">Approved YTD</div><div class="metric-value">${reqs.filter(r=>r.status==='approved').length}</div></div>
+  <!-- KPI bar -->
+  <div class="metrics-row" style="margin-bottom:16px">
+    <div class="metric" style="border-left:3px solid var(--az)">
+      <div class="metric-label">Total employees</div>
+      <div class="metric-value">${d.headcount.total}</div>
+      <div class="metric-sub">${d.headcount.byRole.map(r=>`${r.role}: ${r.c}`).join(' · ')}${d.headcount.excluded?`<br><span style="color:var(--txt3)">${d.headcount.excluded} without company excluded</span>`:''}</div>
+    </div>
+    <div class="metric" style="border-left:3px solid #22c55e">
+      <div class="metric-label">Active now (Teams)</div>
+      <div class="metric-value" style="color:#22c55e">${d.presence.activeNow}</div>
+      <div class="metric-sub">away: ${d.presence.awayNow} · dnd: ${d.presence.dndNow}</div>
+    </div>
+    <div class="metric" style="border-left:3px solid var(--red)">
+      <div class="metric-label">On leave today</div>
+      <div class="metric-value" style="color:var(--red)">${d.leave.onLeaveToday}</div>
+      <div class="metric-sub">${pending} pending approval</div>
+    </div>
+    <div class="metric" style="border-left:3px solid #f59e0b">
+      <div class="metric-label">Leave utilisation</div>
+      <div class="metric-value" style="color:#f59e0b">${d.leave.balUtil}%</div>
+      <div class="metric-sub">avg ${d.leave.avgUsed||0}d used/person</div>
+    </div>
+    <div class="metric" style="border-left:3px solid #a855f7">
+      <div class="metric-label">Avg span of control</div>
+      <div class="metric-value" style="color:#a855f7">${d.management.avgSpan}</div>
+      <div class="metric-sub">max ${d.management.maxSpan} · ${d.management.unmanaged} unassigned</div>
+    </div>
+    <div class="metric" style="border-left:3px solid #06b6d4">
+      <div class="metric-label">Rejection rate</div>
+      <div class="metric-value" style="color:#06b6d4">${rejRate}%</div>
+      <div class="metric-sub">${approved} approved · ${d.leave.totalReqs} total</div>
+    </div>
   </div>
+
+  <!-- Row 1: Dept + Company + Gender -->
+  <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:16px;margin-bottom:16px">
+    <div class="card"><div class="card-title">Headcount by department</div>
+      <div style="position:relative;height:200px"><canvas id="hr-c1"></canvas></div></div>
+    <div class="card"><div class="card-title">Headcount by company</div>
+      <div style="position:relative;height:200px"><canvas id="hr-c2"></canvas></div></div>
+    <div class="card"><div class="card-title">Gender estimate <span style="font-size:10px;font-weight:400;color:var(--txt3)">(first-name based)</span></div>
+      <div style="position:relative;height:130px"><canvas id="hr-c3"></canvas></div>
+      <div style="display:flex;gap:16px;margin-top:10px;font-size:12px;justify-content:center">
+        <span style="color:#3b82f6">♂ Male <strong>${d.gender.male}</strong> (${d.headcount.total?Math.round(d.gender.male/d.headcount.total*100):0}%)</span>
+        <span style="color:#ec4899">♀ Female <strong>${d.gender.female}</strong> (${d.headcount.total?Math.round(d.gender.female/d.headcount.total*100):0}%)</span>
+        ${d.gender.unknown ? `<span style="color:var(--txt3)">? <strong>${d.gender.unknown}</strong></span>` : ''}
+      </div>
+    </div>
+  </div>
+
+  <!-- Row 2: Team + Leave by type -->
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:16px">
+    <div class="card"><div class="card-title">Headcount by team</div>
+      <div style="position:relative;height:200px"><canvas id="hr-c4"></canvas></div></div>
+    <div class="card"><div class="card-title">Leave days approved by type</div>
+      <div style="position:relative;height:200px"><canvas id="hr-c5"></canvas></div></div>
+  </div>
+
+  <!-- Row 3: Monthly leave trend + Leave by dept -->
+  <div style="display:grid;grid-template-columns:2fr 1fr;gap:16px;margin-bottom:16px">
+    <div class="card"><div class="card-title">Leave request trend (monthly)</div>
+      <div style="position:relative;height:180px"><canvas id="hr-c6"></canvas></div></div>
+    <div class="card"><div class="card-title">Leave days by department</div>
+      <div style="position:relative;height:180px"><canvas id="hr-c7"></canvas></div></div>
+  </div>
+
+  <!-- Row 4: Health alerts + Manager table -->
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:16px">
+    <div class="card"><div class="card-title">⚠ Org health alerts</div>${buildHealthAlerts(d)}</div>
+    <div class="card"><div class="card-title">Manager span of control</div>${buildManagerTable(emps)}</div>
+  </div>
+
+  <!-- Row 5: Role distribution + Presence -->
   <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px">
-    <div class="card"><div class="card-title">Leave by type</div>
-      <div style="position:relative;height:220px"><canvas id="c-lt"></canvas></div></div>
-    <div class="card"><div class="card-title">Request status breakdown</div>
-      <div style="position:relative;height:220px"><canvas id="c-st"></canvas></div></div>
+    <div class="card"><div class="card-title">Role distribution</div>
+      <div style="position:relative;height:180px"><canvas id="hr-c8"></canvas></div></div>
+    <div class="card"><div class="card-title">Live Teams presence</div>
+      <div style="position:relative;height:180px"><canvas id="hr-c9"></canvas></div></div>
   </div>`;
-  const byType = {}; reqs.forEach(r => { byType[r.type_name] = (byType[r.type_name]||0)+1; });
-  chartCache.lt = new Chart(document.getElementById('c-lt'),{type:'doughnut',data:{labels:Object.keys(byType),datasets:[{data:Object.values(byType),backgroundColor:['#3b82f6','#22c55e','#ef4444','#a855f7','#9ca3af','#f59e0b'],borderWidth:0}]},options:{responsive:true,maintainAspectRatio:false,cutout:'55%',plugins:{legend:{position:'right',labels:{font:{size:11},boxWidth:10}}}}});
-  const statuses = {approved:0,rejected:0,pending:0};
-  reqs.forEach(r => { if(r.status==='approved') statuses.approved++; else if(r.status==='rejected') statuses.rejected++; else statuses.pending++; });
-  chartCache.st = new Chart(document.getElementById('c-st'),{type:'bar',data:{labels:['Approved','Rejected','Pending'],datasets:[{data:[statuses.approved,statuses.rejected,statuses.pending],backgroundColor:['#22c55e','#ef4444','#f59e0b'],borderWidth:0,borderRadius:4}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{y:{beginAtZero:true,grid:{color:'rgba(0,0,0,0.04)'},ticks:{font:{size:11}}},x:{grid:{display:false},ticks:{font:{size:11}}}}}});
+
+  // Helper to safely create charts and register in chartCache
+  function mkChart(id, config) {
+    const canvas = document.getElementById(id);
+    if (!canvas) return;
+    try { chartCache[id] = new Chart(canvas, config); } catch(e) { console.warn('Chart error', id, e.message); }
+  }
+
+  const legendRight = { position:'right', labels:{ font:{size:11}, boxWidth:10, padding:8 } };
+  const gridFaint   = { color:'rgba(0,0,0,0.04)' };
+  const tickSmall   = { font:{size:10} };
+
+  // 1. Dept horizontal bar
+  mkChart('hr-c1',{ type:'bar', data:{
+    labels: d.headcount.byDept.map(r=>r.dept),
+    datasets:[{ data:d.headcount.byDept.map(r=>r.c), backgroundColor:COLORS, borderRadius:3 }]
+  }, options:{ indexAxis:'y', responsive:true, maintainAspectRatio:false,
+    plugins:{ legend:{ display:false } },
+    scales:{ x:{ beginAtZero:true, grid:gridFaint, ticks:tickSmall }, y:{ grid:{display:false}, ticks:tickSmall } }
+  }});
+
+  // 2. Company doughnut
+  mkChart('hr-c2',{ type:'doughnut', data:{
+    labels: d.headcount.byCompany.map(r=>r.company),
+    datasets:[{ data:d.headcount.byCompany.map(r=>r.c), backgroundColor:COLORS, borderWidth:0 }]
+  }, options:{ responsive:true, maintainAspectRatio:false, cutout:'55%',
+    plugins:{ legend:legendRight }
+  }});
+
+  // 3. Gender doughnut
+  mkChart('hr-c3',{ type:'doughnut', data:{
+    labels:['Male','Female',...(d.gender.unknown?['Unknown']:[])],
+    datasets:[{ data:[d.gender.male, d.gender.female, ...(d.gender.unknown?[d.gender.unknown]:[])],
+      backgroundColor:['#3b82f6','#ec4899','#e5e7eb'], borderWidth:0 }]
+  }, options:{ responsive:true, maintainAspectRatio:false, cutout:'60%',
+    plugins:{ legend:{ display:false } }
+  }});
+
+  // 4. Team horizontal bar
+  mkChart('hr-c4',{ type:'bar', data:{
+    labels: d.headcount.byTeam.map(r=>r.team),
+    datasets:[{ data:d.headcount.byTeam.map(r=>r.c), backgroundColor:COLORS, borderRadius:3 }]
+  }, options:{ indexAxis:'y', responsive:true, maintainAspectRatio:false,
+    plugins:{ legend:{ display:false } },
+    scales:{ x:{ beginAtZero:true, grid:gridFaint, ticks:tickSmall }, y:{ grid:{display:false}, ticks:tickSmall } }
+  }});
+
+  // 5. Leave by type doughnut
+  mkChart('hr-c5',{ type:'doughnut', data:{
+    labels: d.leave.byType.map(r=>r.name),
+    datasets:[{ data:d.leave.byType.map(r=>r.total_days||0), backgroundColor:COLORS, borderWidth:0 }]
+  }, options:{ responsive:true, maintainAspectRatio:false, cutout:'55%',
+    plugins:{ legend:legendRight,
+      tooltip:{ callbacks:{ label: ctx => `${ctx.label}: ${ctx.raw}d` } } }
+  }});
+
+  // 6. Monthly leave trend line
+  mkChart('hr-c6',{ type:'line', data:{
+    labels: d.leave.leaveTrend.map(r=>r.month),
+    datasets:[{ label:'Requests', data:d.leave.leaveTrend.map(r=>r.c),
+      borderColor:'#3b82f6', backgroundColor:'rgba(59,130,246,0.1)',
+      fill:true, tension:0.4, pointRadius:3 }]
+  }, options:{ responsive:true, maintainAspectRatio:false,
+    plugins:{ legend:{ display:false } },
+    scales:{ y:{ beginAtZero:true, grid:gridFaint, ticks:tickSmall },
+             x:{ grid:{ display:false }, ticks:tickSmall } }
+  }});
+
+  // 7. Leave by dept bar
+  mkChart('hr-c7',{ type:'bar', data:{
+    labels: d.leave.byDept.map(r=>r.dept),
+    datasets:[{ data:d.leave.byDept.map(r=>r.total_days||0), backgroundColor:COLORS, borderRadius:3 }]
+  }, options:{ indexAxis:'y', responsive:true, maintainAspectRatio:false,
+    plugins:{ legend:{ display:false },
+      tooltip:{ callbacks:{ label: ctx => `${ctx.raw} days` } } },
+    scales:{ x:{ beginAtZero:true, grid:gridFaint, ticks:tickSmall }, y:{ grid:{display:false}, ticks:tickSmall } }
+  }});
+
+  // 8. Role doughnut
+  mkChart('hr-c8',{ type:'doughnut', data:{
+    labels: d.headcount.byRole.map(r=>r.role),
+    datasets:[{ data:d.headcount.byRole.map(r=>r.c),
+      backgroundColor:['#3b82f6','#22c55e','#f59e0b','#a855f7','#9ca3af'], borderWidth:0 }]
+  }, options:{ responsive:true, maintainAspectRatio:false, cutout:'55%',
+    plugins:{ legend:legendRight }
+  }});
+
+  // 9. Presence doughnut
+  mkChart('hr-c9',{ type:'doughnut', data:{
+    labels:['Active / Available','Away / Idle','Do not disturb','Offline'],
+    datasets:[{ data:[d.presence.activeNow, d.presence.awayNow, d.presence.dndNow, d.presence.offlineNow],
+      backgroundColor:['#22c55e','#f59e0b','#7c3aed','#9ca3af'], borderWidth:0 }]
+  }, options:{ responsive:true, maintainAspectRatio:false, cutout:'55%',
+    plugins:{ legend:legendRight }
+  }});
+}
+
+function buildHealthAlerts(d) {
+  const alerts = [];
+
+  if (d.management.unmanaged > 0)
+    alerts.push({ level:'warn', icon:'👤', msg:`${d.management.unmanaged} employees have no manager assigned`, action:"Go to Employee Directory → Edit → Direct manager" });
+  if (d.coverage.noCal > 0)
+    alerts.push({ level:'warn', icon:'📅', msg:`${d.coverage.noCal} employees have no work calendar`, action:"Calendar Management → Employee Assignment" });
+  if (d.coverage.noCompany > 0)
+    alerts.push({ level:'info', icon:'🏢', msg:`${d.coverage.noCompany} employees have no company field`, action:"Sync from Entra ID or edit manually" });
+  if (d.management.maxSpan > 15)
+    alerts.push({ level:'warn', icon:'⚖️', msg:`One manager has ${d.management.maxSpan} direct reports (consider restructuring)`, action:"Review org structure in Employee Directory" });
+  if (d.leave.pendingLeave > 10)
+    alerts.push({ level:'urgent', icon:'⏰', msg:`${d.leave.pendingLeave} leave requests pending approval`, action:"Go to All Leave Requests → review pending" });
+  if (parseFloat(d.leave.balUtil) > 85)
+    alerts.push({ level:'warn', icon:'📊', msg:`Leave utilisation at ${d.leave.balUtil}% — employees may exhaust balances`, action:"Review leave balances and consider adjustment" });
+  if (d.gender.unknown > d.headcount.total * 0.3)
+    alerts.push({ level:'info', icon:'📋', msg:`Gender data incomplete for ${d.gender.unknown} employees (name-based estimation)`, action:"Consider adding gender field to employee profiles" });
+
+  if (alerts.length === 0)
+    return '<div style="color:#22c55e;font-size:13px;padding:8px 0">✓ No critical issues detected</div>';
+
+  return alerts.map(a => {
+    const colors = { urgent:'#ef4444', warn:'#f59e0b', info:'#3b82f6' };
+    const bgs    = { urgent:'#fde8e8', warn:'#fef3e6', info:'#e6f2fb' };
+    return `<div style="padding:8px 10px;margin-bottom:6px;background:${bgs[a.level]};border-left:3px solid ${colors[a.level]};border-radius:0 var(--r) var(--r) 0">
+      <div style="font-size:12px;font-weight:600;color:${colors[a.level]}">${a.icon} ${a.msg}</div>
+      <div style="font-size:11px;color:var(--txt2);margin-top:2px">${a.action}</div>
+    </div>`;
+  }).join('');
+}
+
+function buildManagerTable(emps) {
+  const managers = emps.filter(e => e.role === 'manager');
+  if (!managers.length) return '<div style="color:var(--txt2);font-size:13px">No managers found.</div>';
+  const rows = managers.map(m => {
+    const reports = emps.filter(e => e.manager_id === m.id);
+    const depts   = [...new Set(reports.map(e=>e.dept).filter(Boolean))];
+    return `<tr>
+      <td><div style="display:flex;align-items:center;gap:6px">${avDiv(m,22)}${m.name}</div></td>
+      <td style="text-align:center;font-weight:600">${reports.length}</td>
+      <td style="font-size:11px;color:var(--txt2)">${depts.join(', ')||m.dept||'—'}</td>
+    </tr>`;
+  }).join('');
+  return `<div class="tbl-wrap" style="max-height:200px;overflow-y:auto"><table>
+    <tr><th>Manager</th><th>Reports</th><th>Dept</th></tr>
+    ${rows}
+  </table></div>`;
 }
 
 // ─── All leaves ───────────────────────────────────────────────────────────────
@@ -1771,12 +1991,50 @@ function _emp(id) { return window._ed.emps.find(e=>e.id===id)||null; }
 
 async function vEmployees(el) {
   const [emps, cals] = await Promise.all([GET('/employees'), GET('/calendars')]);
-  window._ed = { emps, cals };
+  window._ed = { emps, cals, sort: window._ed?.sort || { col: 'name', dir: 1 } };
+  renderEmpTable(el);
+}
+
+function renderEmpTable(el) {
+  if (!el) el = document.getElementById('page-content');
+  if (!el) return;
+  const { emps, cals, sort } = window._ed;
+
+  // Sort the employees array
+  const sorted = [...emps].sort((a, b) => {
+    let av, bv;
+    switch (sort.col) {
+      case 'name':     av = a.name||'';         bv = b.name||'';         break;
+      case 'dept':     av = a.dept||'';         bv = b.dept||'';         break;
+      case 'team':     av = a.team||'';         bv = b.team||'';         break;
+      case 'manager':  av = a.manager_name||''; bv = b.manager_name||''; break;
+      case 'company':  av = a.company||'';      bv = b.company||'';      break;
+      case 'role':     av = a.role||'';         bv = b.role||'';         break;
+      case 'calendar': av = (cals.find(c=>c.id===a.cal_id)||{}).name||''; bv = (cals.find(c=>c.id===b.cal_id)||{}).name||''; break;
+      case 'policy':   av = a.bal_type||'';     bv = b.bal_type||'';     break;
+      default:         av = ''; bv = '';
+    }
+    return av.localeCompare(bv) * sort.dir;
+  });
+
+  // Sort indicator helper
+  const th = (label, col) => {
+    const active = sort.col === col;
+    const arrow  = active ? (sort.dir === 1 ? ' ▲' : ' ▼') : ' ⇅';
+    const style  = `cursor:pointer;user-select:none;white-space:nowrap;${active?'color:var(--az);':''}`;
+    return `<th style="${style}" onclick="empSort('${col}')">${label}<span style="opacity:${active?1:0.35};font-size:10px">${arrow}</span></th>`;
+  };
+
   el.innerHTML = `<div class="sh"><div class="st">Employee directory (${emps.length})</div>
     <button class="btn btn-primary" onclick="openEmpModal(null)">+ Add employee</button></div>
   <div class="tbl-wrap"><table>
-    <tr><th>Name</th><th>Dept</th><th>Team</th><th>Manager</th><th>Company</th><th>Role</th><th>Calendar</th><th>Policy</th><th></th></tr>
-    ${emps.map(e=>{const cal=cals.find(c=>c.id===e.cal_id)||{};return`<tr>
+    <tr>
+      ${th('Name','name')}${th('Dept','dept')}${th('Team','team')}
+      ${th('Manager','manager')}${th('Company','company')}${th('Role','role')}
+      ${th('Calendar','calendar')}${th('Policy','policy')}
+      <th></th>
+    </tr>
+    ${sorted.map(e=>{const cal=cals.find(c=>c.id===e.cal_id)||{};return`<tr>
       <td><div style="display:flex;align-items:center;gap:7px">${avDiv(e,26)}${e.name}</div></td>
       <td style="font-size:12px">${e.dept||'—'}</td>
       <td style="font-size:12px;color:var(--txt3)">${e.team||'—'}</td>
@@ -1788,6 +2046,13 @@ async function vEmployees(el) {
       <td><button class="btn" style="font-size:11px;padding:3px 8px" onclick="openEmpModal(${e.id})">Edit</button></td>
     </tr>`}).join('')}
   </table></div>`;
+}
+
+function empSort(col) {
+  const s = window._ed.sort;
+  if (s.col === col) s.dir *= -1; // toggle direction
+  else { s.col = col; s.dir = 1; } // new column → ascending
+  renderEmpTable(document.getElementById('page-content'));
 }
 function openEmpModal(idOrNull) {
   const emp = idOrNull ? _emp(idOrNull) : null;

@@ -164,7 +164,7 @@ async function main() {
     console.log(`${OK} Organization.Read: ${name}`);
   } catch(e) { console.log(`${FAIL} Organization.Read: ${e.message}`); }
 
-  // 4b. Users
+  // 4b. Users + manager expand test
   let sampleEntraIds = [];
   try {
     const r = await httpsGet('users?$select=id,displayName,mail,userPrincipalName,department&$top=5', token);
@@ -173,7 +173,6 @@ async function main() {
       sampleEntraIds = users.map(u=>u.id).filter(Boolean);
       console.log(`${OK} User.Read.All: ${users.length} sample users`);
       users.forEach(u=>console.log(`     ${(u.displayName||'?').padEnd(25)} ${u.mail||u.userPrincipalName||'no email'} | dept: ${u.department||'—'}`));
-      // Count total
       try {
         const countR = await httpsGet('users/$count', token);
         if (typeof countR.body === 'number') console.log(`   Total users in directory: ${countR.body}`);
@@ -182,6 +181,30 @@ async function main() {
       console.log(`${FAIL} User.Read.All: HTTP ${r.status} — ${JSON.stringify(r.body.error||r.body).slice(0,120)}`);
     }
   } catch(e) { console.log(`${FAIL} User.Read.All: ${e.message}`); }
+
+  // 4b2. Manager expand test — critical for manager sync
+  console.log('');
+  try {
+    const r = await httpsGet('users?$select=id,displayName,mail,userPrincipalName&$expand=manager&$top=3', token);
+    if (r.status === 200 && r.body.value) {
+      const withMgr = r.body.value.filter(u => u.manager);
+      const withoutMgr = r.body.value.filter(u => !u.manager);
+      console.log(`${OK} Manager expand (\$expand=manager): tested on ${r.body.value.length} users`);
+      if (withMgr.length > 0) {
+        withMgr.forEach(u => {
+          const m = u.manager;
+          console.log(`   ${(u.displayName||'?').padEnd(25)} → manager: ${m.displayName||'?'} | id: ${m.id?.slice(0,8)} | mail: ${m.mail||m.userPrincipalName||'(no mail in expand)'}`);
+        });
+        if (!withMgr[0].manager.mail && !withMgr[0].manager.userPrincipalName) {
+          console.log(`   ${WARN} Manager expand returns id only (no mail/UPN) — WorkIQ will use entra_id lookup instead`);
+        }
+      } else {
+        console.log(`   ${INFO} First 3 users have no manager set in Entra (normal — not all users have managers)`);
+      }
+    } else {
+      console.log(`${FAIL} Manager expand: HTTP ${r.status} — ${JSON.stringify(r.body.error||r.body).slice(0,120)}`);
+    }
+  } catch(e) { console.log(`${FAIL} Manager expand test: ${e.message}`); }
 
   // 4c. Sign-in logs
   console.log('');

@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Avaxia — HR Platform</title>
+<title>WorkIQ — HR Platform</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
 <style>
 :root{--az:#0078d4;--az-dk:#004e8c;--az-lt:#e6f2fb;--bg:#f5f6fa;--srf:#fff;--bdr:#e2e4e9;--txt:#1a1d23;--txt2:#5a6073;--txt3:#9399a8;--grn:#0d5c30;--grn-lt:#e6f9f0;--amb:#7a4a00;--amb-lt:#fef3e6;--red:#b91c1c;--red-lt:#fde8e8;--pur:#4a1a8a;--pur-lt:#f0e9fb;--r:8px;--rl:12px;--sb:220px;--hdr:52px}
@@ -136,7 +136,7 @@ nav{flex:1;padding:8px 0;overflow-y:auto}
   <div class="lbox">
     <div class="logo">
       <div class="logo-icon"><svg viewBox="0 0 20 20"><path d="M10 2L3 6v8l7 4 7-4V6L10 2zm0 2.3l4.5 2.6-4.5 2.6L5.5 6.9 10 4.3zm-5.5 4l4.5 2.6V15l-4.5-2.6V8.3zm6.5 2.6l4.5-2.6v4.1L11 15v-4.1z"/></svg></div>
-      <div><div style="font-size:20px;font-weight:700">Avaxia</div><div style="font-size:11px;color:var(--txt3)">Entra ID HR Platform</div></div>
+      <div><div style="font-size:20px;font-weight:700">WorkIQ</div><div style="font-size:11px;color:var(--txt3)">Entra ID HR Platform</div></div>
     </div>
 
     <!-- Microsoft SSO button -->
@@ -175,7 +175,7 @@ nav{flex:1;padding:8px 0;overflow-y:auto}
     <div class="sb-hdr">
       <div class="brand">
         <div class="brand-icon"><svg viewBox="0 0 20 20"><path d="M10 2L3 6v8l7 4 7-4V6L10 2zm0 2.3l4.5 2.6-4.5 2.6L5.5 6.9 10 4.3zm-5.5 4l4.5 2.6V15l-4.5-2.6V8.3zm6.5 2.6l4.5-2.6v4.1L11 15v-4.1z"/></svg></div>
-        <div><div class="brand-name">Avaxia</div><div class="brand-sub">Entra ID Platform</div></div>
+        <div><div class="brand-name">WorkIQ</div><div class="brand-sub">Entra ID Platform</div></div>
       </div>
       <div id="rbadge" class="rbadge"></div>
     </div>
@@ -322,9 +322,9 @@ async function checkEntraStatus() {
 // ─── Nav ──────────────────────────────────────────────────────────────────────
 const NAV_DEFS = {
   employee:[{id:'emp-dash',label:'My dashboard'},{id:'my-activity',label:'My activity log'},{id:'apply-leave',label:'Apply for leave'},{id:'my-leaves',label:'My leave requests',badge:'',badgeCls:'nb-a'},{id:'my-calendar',label:'My calendar'}],
-  manager:[{id:'mgr-dash',label:'Team dashboard'},{id:'team-activity',label:'Team activity'},{id:'mgr-approvals',label:'Pending approvals',badge:'',badgeCls:'nb-r'},{id:'team-calendar',label:'Team calendar'},{id:'my-leaves',label:'My leaves'}],
+  manager:[{id:'mgr-dash',label:'Team dashboard'},{id:'team-activity',label:'Team activity'},{id:'mgr-approvals',label:'Pending approvals',badge:'',badgeCls:'nb-r'},{id:'my-leaves',label:'Leave history'},{id:'team-calendar',label:'Team calendar'}],
   hr:[{id:'hr-dash',label:'HR dashboard',sec:'OVERVIEW'},{id:'all-activity',label:'All activity'},{id:'all-leaves',label:'Leave requests',sec:'LEAVE',badge:'',badgeCls:'nb-r'},{id:'leave-types',label:'Leave types'},{id:'approval-rules',label:'Approval rules'},{id:'calendars',label:'Calendar management',sec:'ADMIN'},{id:'cal-assign',label:'Employee assignment'},{id:'leave-balance',label:'Leave balance engine'},{id:'employees',label:'Employee directory'},{id:'departments',label:'Departments & teams'},{id:'system',label:'System settings',sec:'SYSTEM'},{id:'email-settings',label:'Email / SMTP'},{id:'entra-config',label:'Entra ID config'},{id:'audit-log',label:'Audit log'}],
-  director:[{id:'dir-dash',label:'Executive dashboard'},{id:'dir-approvals',label:'Final approvals',badge:'',badgeCls:'nb-r'},{id:'all-activity',label:'Activity overview'},{id:'reports',label:'Reports'}],
+  director:[{id:'dir-dash',label:'Executive dashboard'},{id:'dir-approvals',label:'Final approvals',badge:'',badgeCls:'nb-r'},{id:'my-leaves',label:'Leave history'},{id:'all-activity',label:'Activity overview'},{id:'reports',label:'Reports'}],
 };
 const PTITLES = {'emp-dash':'My dashboard','my-activity':'My activity log','apply-leave':'Apply for leave','my-leaves':'My leave requests','my-calendar':'My calendar','mgr-dash':'Team dashboard','team-activity':'Team activity','mgr-approvals':'Pending approvals','team-calendar':'Team calendar','hr-dash':'HR dashboard','all-activity':'Activity overview','all-leaves':'All leave requests','leave-types':'Leave types','approval-rules':'Approval workflows','calendars':'Calendar management','cal-assign':'Employee calendar assignment','leave-balance':'Leave balance engine','employees':'Employee directory','departments':'Departments & teams','system':'System settings','email-settings':'Email / SMTP settings','entra-config':'Entra ID / Azure config','audit-log':'Audit log','dir-dash':'Executive dashboard','dir-approvals':'Final approvals','reports':'Reports'};
 
@@ -386,8 +386,16 @@ function mkToggle(on, id='') {
 function isOn(id) { return document.getElementById(id)?.classList.contains('on'); }
 function v(id) { return document.getElementById(id)?.value || ''; }
 function statusPill(s) {
-  const m={approved:['pill-green','Approved'],rejected:['pill-red','Rejected'],pending_manager:['pill-amber','Awaiting manager'],pending_hr:['pill-amber','Awaiting HR'],pending_director:['pill-purple','Awaiting director']};
-  const [cls,label]=m[s]||['pill-gray',s]; return `<span class="pill ${cls}">${label}</span>`;
+  const m={
+    approved:['pill-green','Approved'],
+    rejected:['pill-red','Rejected'],
+    pending_manager:['pill-amber','Awaiting manager'],
+    pending_hr:['pill-amber','Awaiting HR'],
+    pending_hr_admin:['pill-amber','Awaiting HR'],
+    pending_director:['pill-purple','Awaiting director'],
+  };
+  const [cls,label]=m[s]||['pill-gray',s];
+  return `<span class="pill ${cls}">${label}</span>`;
 }
 function miniChain(approvals) {
   if (!approvals) return '';
@@ -515,23 +523,83 @@ async function submitLeave() {
   } catch(e) { toast(e.message,'error'); }
 }
 
-// ─── My leaves ────────────────────────────────────────────────────────────────
+// ─── My leaves / Team leave history ─────────────────────────────────────────
 async function vMyLeaves(el) {
+  const isManager  = me.role === 'manager';
+  const isDirector = me.role === 'director';
   const reqs = await GET('/leave-requests');
-  el.innerHTML = `<div class="sh"><div class="st">My leave requests</div>
-    <button class="btn btn-primary" onclick="navigate('apply-leave')">+ New request</button></div>
-  <div class="tbl-wrap"><table>
-    <tr><th>ID</th><th>Type</th><th>Dates</th><th>Days</th><th>Status</th><th>Chain</th><th></th></tr>
-    ${reqs.length ? reqs.map(r=>`<tr>
+
+  // Filters for manager/director
+  let filterDept = '', filterTeam = '', filterStatus = '';
+  const depts = isManager||isDirector ? [...new Set(reqs.map(r=>r.dept).filter(Boolean))].sort() : [];
+  const teams = isManager||isDirector ? [...new Set(reqs.map(r=>r.team).filter(Boolean))].sort() : [];
+
+  const title = isManager ? 'Team leave history' : isDirector ? 'All leave history' : 'My leave requests';
+
+  el.innerHTML = `
+  <div class="sh">
+    <div class="st">${title} (${reqs.length})</div>
+    <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+      ${(isManager||isDirector) ? `
+        <select id="lh-dept" style="font-size:12px;padding:4px 8px" onchange="reloadLeaveHistory()">
+          <option value="">All departments</option>
+          ${depts.map(d=>`<option value="${d}">${d}</option>`).join('')}
+        </select>
+        <select id="lh-team" style="font-size:12px;padding:4px 8px" onchange="reloadLeaveHistory()">
+          <option value="">All teams</option>
+          ${teams.map(t=>`<option value="${t}">${t}</option>`).join('')}
+        </select>
+        <select id="lh-status" style="font-size:12px;padding:4px 8px" onchange="reloadLeaveHistory()">
+          <option value="">All statuses</option>
+          <option value="approved">Approved</option>
+          <option value="rejected">Rejected</option>
+          <option value="pending_manager">Pending manager</option>
+          <option value="pending_hr">Pending HR</option>
+          <option value="pending_director">Pending director</option>
+        </select>` : ''}
+      ${me.role === 'employee' ? `<button class="btn btn-primary" onclick="navigate('apply-leave')">+ New request</button>` : ''}
+    </div>
+  </div>
+  <div id="leave-history-table"></div>`;
+
+  renderLeaveHistoryTable(reqs);
+}
+
+function renderLeaveHistoryTable(reqs) {
+  const dept   = document.getElementById('lh-dept')?.value   || '';
+  const team   = document.getElementById('lh-team')?.value   || '';
+  const status = document.getElementById('lh-status')?.value || '';
+  let filtered = reqs;
+  if (dept)   filtered = filtered.filter(r => r.dept === dept);
+  if (team)   filtered = filtered.filter(r => r.team === team);
+  if (status) filtered = filtered.filter(r => r.status === status);
+  // Store all (unfiltered) so showLeaveDetail can look up by ID
+  window._reqs = reqs;
+  const isEmployee = me.role === 'employee';
+  const el = document.getElementById('leave-history-table');
+  if (!el) return;
+  el.innerHTML = `<div class="tbl-wrap"><table>
+    <tr>
+      <th>ID</th>
+      ${!isEmployee?'<th>Employee</th><th>Dept</th>':''}
+      <th>Type</th><th>Dates</th><th>Days</th><th>Status</th><th>Chain</th><th></th>
+    </tr>
+    ${filtered.length ? filtered.map(r=>`<tr>
       <td style="font-family:monospace;font-size:11px">${r.id}</td>
+      ${!isEmployee?`<td><div style="display:flex;align-items:center;gap:6px">${avDiv(r,22)}${r.emp_name}</div></td><td style="font-size:12px;color:var(--txt2)">${r.dept||'—'}</td>`:''}
       <td>${r.type_name}</td>
       <td style="font-size:11px">${r.from_date}→${r.to_date}</td>
       <td>${r.days}d</td>
       <td>${statusPill(r.status)}</td>
       <td>${miniChain(r.approvals)}</td>
-      <td><button class="btn" style="font-size:11px;padding:3px 8px" onclick="showLeaveDetail(${JSON.stringify(r).replace(/"/g,'&quot;')})">View</button></td>
-    </tr>`).join('') : '<tr><td colspan="7" style="text-align:center;color:var(--txt2);padding:20px">No requests yet.</td></tr>'}
+      <td><button class="btn" style="font-size:11px;padding:3px 8px" onclick="showLeaveDetail('${r.id}')">View</button></td>
+    </tr>`).join('') : `<tr><td colspan="${isEmployee?7:9}" style="text-align:center;color:var(--txt2);padding:20px">No leave requests found.</td></tr>`}
   </table></div>`;
+}
+
+async function reloadLeaveHistory() {
+  const reqs = await GET('/leave-requests');
+  renderLeaveHistoryTable(reqs);
 }
 
 // ─── Calendar — navigable, holiday-aware ─────────────────────────────────────
@@ -1061,23 +1129,40 @@ function renderActEvents(el, data) {
 
 // ─── Approvals ────────────────────────────────────────────────────────────────
 async function vApprovals(el) {
-  const statusFilter = me.role === 'director' ? 'pending_director' : me.role === 'manager' ? 'pending_manager' : '';
-  const reqs = await GET('/leave-requests' + (statusFilter ? '?status=' + statusFilter : ''));
-  const pending = reqs.filter(r => r.status !== 'approved' && r.status !== 'rejected');
-  el.innerHTML = `<div class="info-box">All decisions are timestamped and logged in the audit trail.</div>
+  // Each role sees only requests pending their specific action
+  const statusFilter = me.role==='director' ? 'pending_director'
+                     : me.role==='manager'  ? 'pending_manager'
+                     : me.role==='hr'       ? 'pending_hr'
+                     : '';
+  const reqs = await GET('/leave-requests' + (statusFilter ? '?status='+statusFilter : ''));
+  // Store for showLeaveDetail lookup
+  window._reqs = reqs;
+  // For HR also catch legacy pending_hr_admin status
+  const pending = reqs.filter(r =>
+    r.status !== 'approved' && r.status !== 'rejected' &&
+    (me.role !== 'hr' || r.status === 'pending_hr' || r.status === 'pending_hr_admin')
+  );
+  const isHR = me.role === 'hr';
+  el.innerHTML = `<div class="info-box">Showing leave requests pending <strong>your</strong> approval action. All decisions are timestamped in the audit trail.</div>
   <div class="tbl-wrap"><table>
-    <tr><th>ID</th><th>Employee</th><th>Type</th><th>Dates</th><th>Days</th><th>Chain</th><th>Actions</th></tr>
+    <tr><th>ID</th><th>Employee</th><th>Dept</th><th>Type</th><th>Dates</th><th>Days</th><th>Chain</th><th>Status</th><th>Actions</th></tr>
     ${pending.length ? pending.map(r=>`<tr>
       <td style="font-family:monospace;font-size:11px">${r.id}</td>
-      <td>${r.emp_name}</td><td>${r.type_name}</td>
+      <td>${r.emp_name}</td>
+      <td style="font-size:12px;color:var(--txt2)">${r.dept||'—'}</td>
+      <td>${r.type_name}</td>
       <td style="font-size:11px">${r.from_date}→${r.to_date}</td>
       <td>${r.days}d</td>
       <td>${miniChain(r.approvals)}</td>
+      <td>${statusPill(r.status)}</td>
       <td style="display:flex;gap:4px">
         <button class="btn btn-success" style="font-size:11px;padding:3px 8px" onclick="handleApproval('${r.id}','approve')">Approve</button>
-        <button class="btn btn-danger" style="font-size:11px;padding:3px 8px" onclick="handleApproval('${r.id}','reject')">Reject</button>
+        <button class="btn btn-danger"  style="font-size:11px;padding:3px 8px" onclick="handleApproval('${r.id}','reject')">Reject</button>
+        <button class="btn"             style="font-size:11px;padding:3px 8px" onclick="showLeaveDetail('${r.id}')">Detail</button>
       </td>
-    </tr>`).join('') : '<tr><td colspan="7" style="text-align:center;color:var(--txt2);padding:20px">No pending approvals.</td></tr>'}
+    </tr>`).join('') : `<tr><td colspan="9" style="text-align:center;color:var(--txt2);padding:20px">
+      No leave requests pending your approval${isHR?' (pending_hr status)':''}.
+    </td></tr>`}
   </table></div>`;
 }
 function handleApproval(id, action) {
@@ -1126,70 +1211,153 @@ async function vHRDash(el) {
 // ─── All leaves ───────────────────────────────────────────────────────────────
 async function vAllLeaves(el) {
   const reqs = await GET('/leave-requests');
+  window._reqs = reqs;
   el.innerHTML = `<div class="sh"><div class="st">All leave requests (${reqs.length})</div>
     <button class="btn">Export CSV</button></div>
   <div class="tbl-wrap"><table>
-    <tr><th>ID</th><th>Employee</th><th>Type</th><th>Dates</th><th>Days</th><th>Chain</th><th>Status</th><th></th></tr>
+    <tr><th>ID</th><th>Employee</th><th>Dept</th><th>Type</th><th>Dates</th><th>Days</th><th>Chain</th><th>Status</th><th></th></tr>
     ${reqs.map(r=>`<tr>
       <td style="font-family:monospace;font-size:11px">${r.id}</td>
-      <td>${r.emp_name}</td><td>${r.type_name}</td>
+      <td><div style="display:flex;align-items:center;gap:6px">${avDiv(r,22)}${r.emp_name}</div></td>
+      <td style="font-size:12px;color:var(--txt2)">${r.dept||'—'}</td>
+      <td>${r.type_name}</td>
       <td style="font-size:11px">${r.from_date}→${r.to_date}</td>
       <td>${r.days}d</td>
       <td>${miniChain(r.approvals)}</td>
       <td>${statusPill(r.status)}</td>
-      <td><button class="btn" style="font-size:11px;padding:3px 8px" onclick="showLeaveDetail(${JSON.stringify(r).replace(/"/g,'&quot;')})">Details</button></td>
+      <td><button class="btn" style="font-size:11px;padding:3px 8px" onclick="showLeaveDetail('${r.id}')">Details</button></td>
     </tr>`).join('')}
   </table></div>`;
 }
 
-function showLeaveDetail(r) {
-  if (typeof r === 'string') r = JSON.parse(r);
+// ── Global request store — avoids JSON serialisation bugs in onclick attrs ────
+window._reqs = [];
+function showLeaveDetail(idOrObj) {
+  // Accept either a request ID string or legacy inline object
+  let r;
+  if (typeof idOrObj === 'string' && !idOrObj.startsWith('{')) {
+    r = window._reqs.find(x => x.id === idOrObj);
+  } else {
+    r = typeof idOrObj === 'string' ? JSON.parse(idOrObj) : idOrObj;
+  }
+  if (!r) { toast('Request not found','error'); return; }
+
   const ch = (r.approvals||[]).map((a,i)=>{
-    const cls=a.status==='done'?'ap-done':a.status==='pending'?'ap-pending':a.status==='rejected'?'ap-rejected':'ap-waiting';
-    const icon=a.status==='done'?'✓':a.status==='rejected'?'✕':(i+1);
-    return `<div class="ap-step"><div class="ap-dot ${cls}">${icon}</div><div class="ap-label">${a.role}<br>${a.approver_name||''}</div></div>${i<r.approvals.length-1?'<div class="ap-arr"></div>':''}`;
+    const cls = a.status==='done'?'ap-done':a.status==='pending'?'ap-pending':a.status==='rejected'?'ap-rejected':'ap-waiting';
+    const icon = a.status==='done'?'✓':a.status==='rejected'?'✕':(i+1);
+    return `<div class="ap-step"><div class="ap-dot ${cls}">${icon}</div>
+      <div class="ap-label">${a.role}<br><span style="font-size:10px;color:var(--txt3)">${a.approver_name||''}</span>
+      ${a.comment?`<br><span style="font-size:10px;font-style:italic;color:var(--txt2)">"${a.comment}"</span>`:''}
+      </div></div>${i<(r.approvals.length-1)?'<div class="ap-arr"></div>':''}`;
   }).join('');
+
+  // Find the current pending step
+  const pendingStep = (r.approvals||[]).find(a => a.status === 'pending');
+
+  // Determine if current user can act — compare role strings case-insensitively
+  const myRole = (me.role||'').toLowerCase();
+  const stepRole = (pendingStep?.role||'').toLowerCase().replace(/\s+/g,'');
+  const canAct = pendingStep
+    && r.status !== 'approved'
+    && r.status !== 'rejected'
+    && (
+      (myRole === 'manager'  && stepRole === 'manager') ||
+      (myRole === 'hr'       && (stepRole === 'hradmin' || stepRole === 'hr')) ||
+      (myRole === 'director' && stepRole === 'director')
+    );
+
+  const actionBtns = canAct ? `
+    <div style="margin-top:14px;padding-top:12px;border-top:1px solid var(--bdr)">
+      <div style="font-size:12px;font-weight:600;color:var(--txt2);margin-bottom:8px">Your action (${pendingStep.role} step)</div>
+      <div style="display:flex;gap:8px;align-items:center">
+        <input type="text" id="ld-comment" placeholder="Comment (required for rejection)" style="flex:1;font-size:12px">
+        <button class="btn btn-danger"  onclick="detailReject('${r.id}')">Reject</button>
+        <button class="btn btn-success" onclick="detailApprove('${r.id}')">Approve</button>
+      </div>
+    </div>` : '';
+
   showModal(`Leave request ${r.id}`,`
-  <div class="fg" style="margin-bottom:14px">
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:14px;font-size:13px">
     <div><div style="font-size:11px;color:var(--txt2)">Employee</div><div style="font-weight:600">${r.emp_name}</div></div>
-    <div><div style="font-size:11px;color:var(--txt2)">Type</div><div>${r.type_name}</div></div>
+    <div><div style="font-size:11px;color:var(--txt2)">Department</div><div>${r.dept||'—'}</div></div>
+    <div><div style="font-size:11px;color:var(--txt2)">Leave type</div><div>${r.type_name}</div></div>
+    <div><div style="font-size:11px;color:var(--txt2)">Days</div><div><strong>${r.days}d</strong></div></div>
     <div><div style="font-size:11px;color:var(--txt2)">From</div><div>${r.from_date}</div></div>
-    <div><div style="font-size:11px;color:var(--txt2)">To / Days</div><div>${r.to_date} · ${r.days}d</div></div>
-    <div class="full"><div style="font-size:11px;color:var(--txt2)">Reason</div><div style="color:var(--txt2)">${r.reason||'—'}</div></div>
+    <div><div style="font-size:11px;color:var(--txt2)">To</div><div>${r.to_date}</div></div>
+    <div style="grid-column:1/-1"><div style="font-size:11px;color:var(--txt2)">Reason</div>
+      <div style="color:var(--txt2)">${r.reason||'—'}</div></div>
   </div>
   <div style="font-size:12px;font-weight:600;color:var(--txt2);margin-bottom:8px">Approval chain</div>
   <div class="ap-chain">${ch}</div>
-  <div style="margin-top:10px;display:flex;gap:8px;align-items:center"><span style="font-size:12px;color:var(--txt2)">Status:</span>${statusPill(r.status)}</div>
-  <div class="mactions"><button class="btn btn-primary" onclick="closeModal()">Close</button></div>`);
+  <div style="margin-top:10px;display:flex;gap:8px;align-items:center">
+    <span style="font-size:12px;color:var(--txt2)">Status:</span>${statusPill(r.status)}
+    ${pendingStep?`<span style="font-size:11px;color:var(--txt3)">· Awaiting ${pendingStep.role}</span>`:''}
+  </div>
+  ${actionBtns}
+  <div class="mactions"><button class="btn" onclick="closeModal()">Close</button></div>`);
+}
+
+async function detailApprove(reqId) {
+  const comment = document.getElementById('ld-comment')?.value || '';
+  try {
+    await POST(`/leave-requests/${reqId}/approve`, { comment });
+    closeModal(); toast('Leave request approved ✓');
+    // Refresh current page
+    if (typeof navigate === 'function') navigate(view);
+  } catch(e) { toast(e.message, 'error'); }
+}
+async function detailReject(reqId) {
+  const reason = document.getElementById('ld-comment')?.value || '';
+  if (!reason.trim()) { toast('Enter a reason for rejection', 'error'); return; }
+  try {
+    await POST(`/leave-requests/${reqId}/reject`, { reason });
+    closeModal(); toast('Leave request rejected');
+    if (typeof navigate === 'function') navigate(view);
+  } catch(e) { toast(e.message, 'error'); }
 }
 
 // ─── Leave types ──────────────────────────────────────────────────────────────
+window._ltData = [];
 async function vLeaveTypes(el) {
   const lts = await GET('/leave-types');
+  window._ltData = lts;
   el.innerHTML = `<div class="sh"><div class="st">Leave types</div>
-    <button class="btn btn-primary" onclick="openLeaveTypeModal()">+ Add type</button></div>
+    <button class="btn btn-primary" onclick="openLeaveTypeModal(null)">+ Add type</button></div>
   <div class="tbl-wrap"><table>
     <tr><th></th><th>Name</th><th>Days/yr</th><th>Approval levels</th><th>Carry over</th><th>Document</th><th></th></tr>
     ${lts.map(lt=>`<tr>
       <td><div style="width:10px;height:10px;border-radius:50%;background:${lt.color}"></div></td>
       <td style="font-weight:600">${lt.name}</td><td>${lt.days_per_year}d</td>
       <td><span class="pill pill-blue">${lt.approval_levels} levels</span></td>
-      <td>${lt.carry_over === 'yes' ? `Yes (max ${lt.carry_over_max}d)` : 'No'}</td>
+      <td>${lt.carry_over==='yes'?`Yes (max ${lt.carry_over_max}d)`:'No'}</td>
       <td>${lt.doc_required?'<span class="pill pill-amber">Required</span>':'<span class="pill pill-gray">Optional</span>'}</td>
-      <td><button class="btn" style="font-size:11px;padding:3px 8px" onclick="openLeaveTypeModal(${JSON.stringify(lt).replace(/"/g,'&quot;')})">Edit</button></td>
+      <td><button class="btn" style="font-size:11px;padding:3px 8px" onclick="openLeaveTypeModal(${lt.id})">Edit</button></td>
     </tr>`).join('')}
   </table></div>`;
 }
-function openLeaveTypeModal(lt) {
+function openLeaveTypeModal(idOrNull) {
+  const lt = idOrNull ? window._ltData.find(x=>x.id===idOrNull) : null;
   const isEdit = !!lt;
-  showModal(isEdit ? `Edit: ${lt.name}` : 'Add leave type',`
+  showModal(isEdit?`Edit: ${lt.name}`:'Add leave type',`
   <div class="fg">
     <div class="fg-group full"><label>Name</label><input type="text" id="lt-name" value="${isEdit?lt.name:''}"></div>
     <div class="fg-group"><label>Days per year</label><input type="number" id="lt-dpy" value="${isEdit?lt.days_per_year:14}"></div>
-    <div class="fg-group"><label>Approval levels</label><select id="lt-lvl"><option value="2"${!isEdit||lt.approval_levels==2?' selected':''}>2 levels (Manager + HR)</option><option value="3"${isEdit&&lt.approval_levels==3?' selected':''}>3 levels (+ Director)</option></select></div>
-    <div class="fg-group"><label>Carry over</label><select id="lt-co"><option value="no"${!isEdit||lt.carry_over==='no'?' selected':''}>No</option><option value="yes"${isEdit&&lt.carry_over==='yes'?' selected':''}>Yes</option></select></div>
+    <div class="fg-group"><label>Approval levels</label>
+      <select id="lt-lvl">
+        <option value="2"${!isEdit||lt.approval_levels==2?' selected':''}>2 levels (Manager + HR)</option>
+        <option value="3"${isEdit&&lt.approval_levels==3?' selected':''}>3 levels (+ Director)</option>
+      </select></div>
+    <div class="fg-group"><label>Carry over</label>
+      <select id="lt-co">
+        <option value="no"${!isEdit||lt.carry_over==='no'?' selected':''}>No</option>
+        <option value="yes"${isEdit&&lt.carry_over==='yes'?' selected':''}>Yes</option>
+      </select></div>
     <div class="fg-group"><label>Max carry-over days</label><input type="number" id="lt-com" value="${isEdit?lt.carry_over_max:0}"></div>
-    <div class="fg-group"><label>Document required</label><select id="lt-doc"><option value="0"${!isEdit||!lt.doc_required?' selected':''}>Optional</option><option value="1"${isEdit&&lt.doc_required?' selected':''}>Required</option></select></div>
+    <div class="fg-group"><label>Document required</label>
+      <select id="lt-doc">
+        <option value="0"${!isEdit||!lt.doc_required?' selected':''}>Optional</option>
+        <option value="1"${isEdit&&lt.doc_required?' selected':''}>Required</option>
+      </select></div>
     <div class="fg-group full"><label>Colour hex</label><input type="text" id="lt-color" value="${isEdit?lt.color:'#0078d4'}"></div>
   </div>
   <div class="mactions">
@@ -1208,8 +1376,18 @@ async function saveLeaveType(id) {
   } catch(e) { toast(e.message,'error'); }
 }
 async function deleteLeaveType(id) {
-  if (!confirm('Deactivate this leave type?')) return;
-  try { await api('DELETE',`/leave-types/${id}`); closeModal(); toast('Leave type removed'); navigate('leave-types'); }
+  const lt = window._ltData.find(x=>x.id===id);
+  showModal(`Delete leave type?`, `
+  <div style="font-size:14px;color:var(--txt);margin-bottom:16px">
+    Delete <strong>${lt?.name||'this leave type'}</strong>? Existing leave requests using this type will be preserved.
+  </div>
+  <div class="mactions">
+    <button class="btn" onclick="closeModal()">Cancel</button>
+    <button class="btn btn-danger" onclick="confirmDeleteLT(${id})">Delete</button>
+  </div>`);
+}
+async function confirmDeleteLT(id) {
+  try { await api('DELETE',`/leave-types/${id}`); closeModal(); toast('Leave type deleted'); navigate('leave-types'); }
   catch(e) { toast(e.message,'error'); }
 }
 
@@ -1257,7 +1435,10 @@ async function vCalendars(el) {
         <div style="width:36px;height:36px;border-radius:8px;background:${c.color}18;border:2px solid ${c.color};display:flex;align-items:center;justify-content:center"><div style="width:10px;height:10px;border-radius:2px;background:${c.color}"></div></div>
         <div><div style="font-size:14px;font-weight:700">${c.name}</div><div style="font-size:12px;color:var(--txt2)">${c.timezone}</div></div>
       </div>
-      <div style="display:flex;gap:6px"><button class="btn" style="font-size:11px;padding:3px 8px" onclick="openCalModal(${JSON.stringify(c).replace(/"/g,'&quot;')})">Edit</button></div>
+      <div style="display:flex;gap:6px">
+        <button class="btn" style="font-size:11px;padding:3px 8px" onclick="openCalModal(${JSON.stringify(c).replace(/"/g,'&quot;')})">Edit</button>
+        <button class="btn btn-danger" style="font-size:11px;padding:3px 8px" onclick="deleteCal('${c.id}')">Delete</button>
+      </div>
     </div>
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;font-size:12px;margin-bottom:10px">
       <div><span style="color:var(--txt3)">Weekend:</span> <strong>${c.weekends}</strong></div>
@@ -1272,7 +1453,7 @@ function openCalModal(cal) {
   <div class="fg">
     <div class="fg-group full"><label>Calendar name</label><input type="text" id="cal-name" value="${isEdit?cal.name:''}"></div>
     <div class="fg-group"><label>Timezone</label><input type="text" id="cal-tz" value="${isEdit?cal.timezone:'UTC'}"></div>
-    <div class="fg-group"><label>Weekend days</label><select id="cal-wk"><option value="Sat-Sun"${!isEdit||cal.weekends==='Sat-Sun'?' selected':''}>Sat–Sun</option><option value="Fri-Sat"${isEdit&&cal.weekends==='Fri-Sat'?' selected':''}>Fri–Sat</option><option value="Fri"${isEdit&&cal.weekends==='Fri'?' selected':''}>Fri only</option></select></div>
+    <div class="fg-group"><label>Weekend days</label><select id="cal-wk"><option value="Sat-Sun"${!isEdit||cal.weekends==='Sat-Sun'?' selected':''}>Sat\u2013Sun</option><option value="Fri-Sat"${isEdit&&cal.weekends==='Fri-Sat'?' selected':''}>Fri\u2013Sat</option><option value="Fri"${isEdit&&cal.weekends==='Fri'?' selected':''}>Fri only</option></select></div>
     <div class="fg-group"><label>Colour hex</label><input type="text" id="cal-color" value="${isEdit?cal.color:'#0078d4'}"></div>
     <div class="fg-group full"><label>Public holidays (comma-separated)</label><input type="text" id="cal-hols" value="${isEdit?cal.holidays.join(', '):''}"></div>
   </div>
@@ -1286,106 +1467,153 @@ async function saveCal(id) {
   const holidays = v('cal-hols').split(',').map(s=>s.trim()).filter(Boolean);
   const data = { name:v('cal-name'), timezone:v('cal-tz'), weekends:v('cal-wk'), color:v('cal-color'), holidays };
   if (id) data.id = id;
-  try {
-    if (id) await PUT(`/calendars/${id}`, data);
-    else await POST('/calendars', data);
-    closeModal(); toast('Calendar saved'); navigate('calendars');
-  } catch(e) { toast(e.message,'error'); }
+  try { if(id) await PUT(`/calendars/${id}`,data); else await POST('/calendars',data); closeModal(); toast('Calendar saved'); navigate('calendars'); }
+  catch(e) { toast(e.message,'error'); }
 }
 async function deleteCal(id) {
-  if (!confirm('Delete this calendar?')) return;
+  showModal('Delete calendar?', `
+  <div style="font-size:14px;color:var(--txt);margin-bottom:16px">
+    Delete this calendar? Employees assigned to it will need to be reassigned.
+  </div>
+  <div class="mactions">
+    <button class="btn" onclick="closeModal()">Cancel</button>
+    <button class="btn btn-danger" onclick="confirmDeleteCal('${id}')">Delete</button>
+  </div>`);
+}
+async function confirmDeleteCal(id) {
   try { await api('DELETE',`/calendars/${id}`); closeModal(); toast('Calendar deleted'); navigate('calendars'); }
   catch(e) { toast(e.message,'error'); }
 }
 
 // ─── Calendar assignment ──────────────────────────────────────────────────────
+// Global store so onclick attrs can access data after async function exits
+window._ca = { cals:[], depts:[], emps:[], teams:[] };
+
 async function vCalAssign(el) {
   const tab = tabState['cal-assign'] || 'individual';
   const [emps, cals, depts] = await Promise.all([GET('/employees'), GET('/calendars'), GET('/departments')]);
-  el.innerHTML = `<div class="info-box">Assign employees to work calendars individually, by department, or in bulk.</div>
+  const teams = [...new Set(emps.map(e=>e.team).filter(Boolean))].sort();
+  window._ca = { cals, depts, emps, teams };
+
+  el.innerHTML = `<div class="info-box">Assign employees to work calendars individually, by department, by team, or in bulk.</div>
   <div class="tab-bar">
     <div class="tab${tab==='individual'?' active':''}" onclick="setTab('cal-assign','individual')">Individual</div>
     <div class="tab${tab==='dept'?' active':''}" onclick="setTab('cal-assign','dept')">By department</div>
+    <div class="tab${tab==='team'?' active':''}" onclick="setTab('cal-assign','team')">By team</div>
     <div class="tab${tab==='bulk'?' active':''}" onclick="setTab('cal-assign','bulk')">Bulk reassign</div>
   </div>
   <div id="ca-body"></div>`;
+
   if (tab === 'individual') {
     document.getElementById('ca-body').innerHTML = `<div class="tbl-wrap"><table>
-      <tr><th>Employee</th><th>Department</th><th>Current calendar</th><th>Action</th></tr>
-      ${emps.map(e=>{const cal=cals.find(c=>c.id===e.cal_id)||{};return`<tr>
+      <tr><th>Employee</th><th>Department</th><th>Team</th><th>Company</th><th>Calendar</th><th>Action</th></tr>
+      ${emps.map(e=>{const cal=cals.find(c=>c.id===e.cal_id)||{}; return`<tr>
         <td><div style="display:flex;align-items:center;gap:7px">${avDiv(e,26)}${e.name}</div></td>
-        <td>${e.dept||'—'}</td>
+        <td style="font-size:12px">${e.dept||'—'}</td>
+        <td style="font-size:12px;color:var(--txt3)">${e.team||'—'}</td>
+        <td style="font-size:12px;color:var(--txt3)">${e.company||'—'}</td>
         <td><span class="pill" style="background:${cal.color||'#ccc'}18;color:${cal.color||'#666'}">${cal.name||'None'}</span></td>
-        <td><button class="btn" style="font-size:11px;padding:3px 8px" onclick="openAssignModal(${e.id},'${e.name}','${e.cal_id||''}',${JSON.stringify(cals).replace(/"/g,'&quot;')})">Change</button></td>
+        <td><button class="btn" style="font-size:11px;padding:3px 8px" onclick="openAssignModal(${e.id})">Change</button></td>
       </tr>`}).join('')}
     </table></div>`;
   } else if (tab === 'dept') {
     document.getElementById('ca-body').innerHTML = `<div class="tbl-wrap"><table>
-      <tr><th>Department</th><th>Employees</th><th>Default calendar</th><th>Action</th></tr>
-      ${depts.map(d=>{const cal=cals.find(c=>c.id===d.cal_id)||{};return`<tr>
-        <td style="font-weight:600">${d.name}</td><td>—</td>
+      <tr><th>Department</th><th>Default calendar</th><th>Action</th></tr>
+      ${depts.map(d=>{const cal=cals.find(c=>c.id===d.cal_id)||{}; return`<tr>
+        <td style="font-weight:600">${d.name}</td>
         <td><span class="pill" style="background:${cal.color||'#ccc'}18;color:${cal.color||'#666'}">${cal.name||'None'}</span></td>
-        <td><button class="btn" style="font-size:11px;padding:3px 8px" onclick="openDeptAssignModal('${d.name}',${JSON.stringify(cals).replace(/"/g,'&quot;')})">Assign</button></td>
+        <td><button class="btn" style="font-size:11px;padding:3px 8px" onclick="openDeptAssignModal(${JSON.stringify(d.name)})">Assign all</button></td>
+      </tr>`}).join('')}
+    </table></div>`;
+  } else if (tab === 'team') {
+    document.getElementById('ca-body').innerHTML = `<div class="tbl-wrap"><table>
+      <tr><th>Team</th><th>Employees</th><th>Action</th></tr>
+      ${teams.map(t=>{const count=emps.filter(e=>e.team===t).length; return`<tr>
+        <td style="font-weight:600">${t}</td><td>${count}</td>
+        <td><button class="btn" style="font-size:11px;padding:3px 8px" onclick="openTeamAssignModal(${JSON.stringify(t)})">Assign all</button></td>
       </tr>`}).join('')}
     </table></div>`;
   } else {
     const calOpts = cals.map(c=>`<option value="${c.id}">${c.name}</option>`).join('');
-    const deptOpts = ['All departments',...depts.map(d=>d.name)].map(d=>`<option>${d}</option>`).join('');
-    document.getElementById('ca-body').innerHTML = `<div class="card">
-      <div class="fg">
-        <div class="fg-group"><label>From calendar</label><select id="bulk-from">${calOpts}</select></div>
-        <div class="fg-group"><label>To calendar</label><select id="bulk-to">${calOpts}</select></div>
-        <div class="fg-group"><label>Department filter</label><select id="bulk-dept">${deptOpts}</select></div>
-        <div class="fg-group"><label>Effective date</label><input type="date" id="bulk-date" value="${new Date().toISOString().slice(0,10)}"></div>
-        <div class="fg-group full"><label>Reason</label><input type="text" id="bulk-reason" placeholder="Reason for bulk reassignment…"></div>
-      </div>
-      <div style="display:flex;justify-content:flex-end;margin-top:14px">
-        <button class="btn btn-primary" onclick="doBulkAssign(${JSON.stringify(depts).replace(/"/g,'&quot;')})">Preview & apply</button>
-      </div>
-    </div>`;
+    const deptOpts = ['All departments',...depts.map(d=>d.name)].map(d=>`<option value="${d}">${d}</option>`).join('');
+    const teamOpts = ['All teams',...teams].map(t=>`<option value="${t}">${t}</option>`).join('');
+    document.getElementById('ca-body').innerHTML = `<div class="card"><div class="fg">
+      <div class="fg-group"><label>Assign by</label><select id="bulk-by"><option value="dept">Department</option><option value="team">Team</option></select></div>
+      <div class="fg-group"><label>Target calendar</label><select id="bulk-to">${calOpts}</select></div>
+      <div class="fg-group"><label>Department</label><select id="bulk-dept">${deptOpts}</select></div>
+      <div class="fg-group"><label>Team</label><select id="bulk-team">${teamOpts}</select></div>
+    </div>
+    <div style="display:flex;justify-content:flex-end;margin-top:14px">
+      <button class="btn btn-primary" onclick="doBulkAssign()">Apply</button>
+    </div></div>`;
   }
 }
 function setTab(viewId, tab) { tabState[viewId] = tab; navigate(viewId); }
-function openAssignModal(empId, empName, currentCalId, cals) {
-  showModal(`Assign calendar: ${empName}`,`
+
+function openAssignModal(empId) {
+  const emp = window._ca.emps.find(e=>e.id===empId);
+  if (!emp) { toast('Employee not found','error'); return; }
+  const calOpts = window._ca.cals.map(c=>`<option value="${c.id}"${c.id===emp.cal_id?' selected':''}>${c.name}</option>`).join('');
+  showModal(`Assign calendar: ${emp.name}`,`
   <div class="fg">
-    <div class="fg-group full"><label>Assign to calendar</label>
-      <select id="asgn-cal">${cals.map(c=>`<option value="${c.id}"${c.id===currentCalId?' selected':''}>${c.name} — ${c.timezone}</option>`).join('')}</select></div>
-    <div class="fg-group full"><label>Effective from</label><input type="date" value="${new Date().toISOString().slice(0,10)}"></div>
+    <div class="fg-group full"><label>Current: ${window._ca.cals.find(c=>c.id===emp.cal_id)?.name||'None'}</label></div>
+    <div class="fg-group full"><label>Assign to</label><select id="asgn-cal">${calOpts}</select></div>
   </div>
-  <div class="mactions"><button class="btn" onclick="closeModal()">Cancel</button>
-    <button class="btn btn-primary" onclick="doAssignCal(${empId})">Save</button></div>`);
+  <div class="mactions">
+    <button class="btn" onclick="closeModal()">Cancel</button>
+    <button class="btn btn-primary" onclick="doAssignCal(${empId})">Save</button>
+  </div>`);
+}
+function openDeptAssignModal(dept) {
+  const calOpts = window._ca.cals.map(c=>`<option value="${c.id}">${c.name}</option>`).join('');
+  showModal(`Assign calendar: Department ${dept}`,`
+  <div class="fg">
+    <div class="fg-group full"><label>Assign all employees in <strong>${dept}</strong> to</label>
+      <select id="da-cal">${calOpts}</select></div>
+    <div class="fg-group full"><label>Individual overrides</label>
+      <select id="da-ov"><option value="keep">Keep existing individual overrides</option><option value="override">Override all uniformly</option></select></div>
+  </div>
+  <div class="mactions">
+    <button class="btn" onclick="closeModal()">Cancel</button>
+    <button class="btn btn-primary" onclick="doDeptAssign(${JSON.stringify(dept)})">Apply to department</button>
+  </div>`);
+}
+function openTeamAssignModal(team) {
+  const calOpts = window._ca.cals.map(c=>`<option value="${c.id}">${c.name}</option>`).join('');
+  showModal(`Assign calendar: Team ${team}`,`
+  <div class="fg">
+    <div class="fg-group full"><label>Assign all employees in team <strong>${team}</strong> to</label>
+      <select id="ta-cal">${calOpts}</select></div>
+  </div>
+  <div class="mactions">
+    <button class="btn" onclick="closeModal()">Cancel</button>
+    <button class="btn btn-primary" onclick="doTeamAssign(${JSON.stringify(team)})">Apply to team</button>
+  </div>`);
 }
 async function doAssignCal(empId) {
   const calId = v('asgn-cal');
-  try { await POST(`/employees/${empId}/calendar`, { cal_id: calId }); closeModal(); toast('Calendar assigned'); navigate('cal-assign'); }
+  try { await POST(`/employees/${empId}/calendar`,{cal_id:calId}); closeModal(); toast('Calendar assigned'); navigate('cal-assign'); }
   catch(e) { toast(e.message,'error'); }
 }
-function openDeptAssignModal(dept, cals) {
-  showModal(`Assign calendar: ${dept}`,`
-  <div class="fg">
-    <div class="fg-group full"><label>Assign all employees in ${dept} to</label>
-      <select id="da-cal">${cals.map(c=>`<option value="${c.id}">${c.name}</option>`).join('')}</select></div>
-    <div class="fg-group full"><label>Effective date</label><input type="date" value="${new Date().toISOString().slice(0,10)}"></div>
-    <div class="fg-group full"><label>Individual overrides</label><select id="da-ov"><option value="keep">Keep existing overrides</option><option value="override">Override all uniformly</option></select></div>
-  </div>
-  <div class="mactions"><button class="btn" onclick="closeModal()">Cancel</button>
-    <button class="btn btn-primary" onclick="doDeptAssign('${dept}')">Apply to department</button></div>`);
-}
 async function doDeptAssign(dept) {
-  const calId = v('da-cal'), override = v('da-ov') === 'override';
-  try { const r = await POST('/employees/bulk-calendar',{dept,cal_id:calId,override}); closeModal(); toast(`Calendar assigned to ${r.count} employees`); navigate('cal-assign'); }
+  const calId = v('da-cal'), override = v('da-ov')==='override';
+  try { const r=await POST('/employees/bulk-calendar',{dept,cal_id:calId,override}); closeModal(); toast(`Assigned ${r.count} employees in ${dept}`); navigate('cal-assign'); }
+  catch(e) { toast(e.message,'error'); }
+}
+async function doTeamAssign(team) {
+  const calId = v('ta-cal');
+  try { const r=await POST('/employees/bulk-calendar',{team,cal_id:calId}); closeModal(); toast(`Assigned ${r.count} employees in team ${team}`); navigate('cal-assign'); }
   catch(e) { toast(e.message,'error'); }
 }
 async function doBulkAssign() {
-  const dept = v('bulk-dept');
-  const calId = v('bulk-to');
+  const by=v('bulk-by'), calId=v('bulk-to'), dept=v('bulk-dept'), team=v('bulk-team');
   if (!calId) { toast('Select a target calendar','error'); return; }
-  const deptFilter = dept === 'All departments' ? null : dept;
   try {
-    if (deptFilter) { const r = await POST('/employees/bulk-calendar',{dept:deptFilter,cal_id:calId,override:false}); toast(`Reassigned ${r.count} employees`); }
-    else { toast('Bulk all-dept reassign not supported — use dept tab','error'); return; }
-    navigate('cal-assign');
+    let r;
+    if (by==='team' && team && team!=='All teams')             r=await POST('/employees/bulk-calendar',{team,cal_id:calId});
+    else if (by==='dept' && dept && dept!=='All departments')  r=await POST('/employees/bulk-calendar',{dept,cal_id:calId,override:false});
+    else { toast('Select a specific department or team','error'); return; }
+    toast(`Reassigned ${r.count} employees`); navigate('cal-assign');
   } catch(e) { toast(e.message,'error'); }
 }
 
@@ -1426,18 +1654,27 @@ async function vLeaveBalance(el) {
       <button class="btn" onclick="runAccrual()">Run monthly accrual now</button>
     </div>`;
   } else if (tab === 'balances') {
-    const bals = await GET('/leave-balances');
+    const [bals, emps, lts] = await Promise.all([GET('/leave-balances'), GET('/employees'), GET('/leave-types')]);
+    // Store for modal
+    window._lbData = { bals, emps, lts };
     document.getElementById('lb-body').innerHTML = `<div class="sh"><div class="st">Employee balances — ${new Date().getFullYear()}</div>
       <button class="btn" onclick="openAdjustModal()">+ Manual adjustment</button></div>
     <div class="tbl-wrap"><table>
-      <tr><th>Employee</th><th>Policy</th><th>Entitled</th><th>Accrued</th><th>Adj.</th><th>Used</th><th>Balance</th><th>Visual</th></tr>
-      ${bals.map(b=>{const bal=((b.accrued||0)+(b.adjustment||0))-(b.used||0);const pct=Math.min(100,Math.round(bal/(b.entitled||24)*100));return`<tr>
-        <td><div style="display:flex;align-items:center;gap:7px">${avDiv(b,22)}${b.emp_name}</div></td>
-        <td><span class="pill ${b.bal_type==='fixed'?'pill-blue':'pill-purple'}">${b.bal_type==='fixed'?'Fixed':'Accrual'}</span></td>
-        <td>${b.entitled||0}d</td><td>${b.accrued||0}d</td><td>${b.adjustment>=0?'+':''}${b.adjustment||0}d</td><td>${b.used||0}d</td>
-        <td><strong>${bal.toFixed(1)}d</strong></td>
-        <td style="width:80px"><div class="bal-bar"><div class="bal-fill" style="width:${pct}%;background:${pct>60?'#0078d4':pct>25?'#f59e0b':'#ef4444'}"></div></div></td>
-      </tr>`}).join('')}
+      <tr><th>Employee</th><th>Leave type</th><th>Policy</th><th>Entitled</th><th>Accrued</th><th>Adj.</th><th>Used</th><th>Balance</th><th>Visual</th></tr>
+      ${bals.map(b=>{
+        const bal=((b.accrued||0)+(b.adjustment||0))-(b.used||0);
+        const pct=Math.min(100,Math.round(bal/Math.max(b.entitled||24,1)*100));
+        return`<tr>
+          <td><div style="display:flex;align-items:center;gap:7px">${avDiv(b,22)}${b.emp_name}</div></td>
+          <td style="font-size:12px">${b.type_name||'—'}</td>
+          <td><span class="pill ${b.bal_type==='fixed'?'pill-blue':'pill-purple'}">${b.bal_type==='fixed'?'Fixed':'Accrual'}</span></td>
+          <td>${b.entitled||0}d</td><td>${b.accrued||0}d</td>
+          <td>${b.adjustment>=0?'+':''}${b.adjustment||0}d</td>
+          <td>${b.used||0}d</td>
+          <td><strong>${bal.toFixed(1)}d</strong></td>
+          <td style="width:80px"><div class="bal-bar"><div class="bal-fill" style="width:${pct}%;background:${pct>60?'#0078d4':pct>25?'#f59e0b':'#ef4444'}"></div></div></td>
+        </tr>`;
+      }).join('')}
     </table></div>`;
   } else {
     document.getElementById('lb-body').innerHTML = `<div class="card">
@@ -1461,19 +1698,60 @@ async function runAccrual() {
   catch(e) { toast(e.message,'error'); }
 }
 function openAdjustModal() {
+  const emps = window._lbData?.emps || [];
+  const lts  = window._lbData?.lts  || [];
+  const empOpts = emps.map(e=>`<option value="${e.id}">${e.name}${e.dept?' — '+e.dept:''}</option>`).join('');
+  const ltOpts  = lts.map(lt=>`<option value="${lt.id}">${lt.name} (${lt.days_per_year}d/yr)</option>`).join('');
   showModal('Manual balance adjustment',`
   <div class="fg">
-    <div class="fg-group full"><label>Employee ID</label><input type="number" id="adj-emp" placeholder="Employee ID"></div>
-    <div class="fg-group"><label>Adjustment (days, can be negative)</label><input type="number" id="adj-days" value="0"></div>
-    <div class="fg-group"><label>Leave type ID</label><input type="number" id="adj-lt" value="1"></div>
-    <div class="fg-group full"><label>Reason</label><input type="text" id="adj-reason" placeholder="Reason for adjustment"></div>
+    <div class="fg-group full">
+      <label>Employee</label>
+      <select id="adj-emp">
+        <option value="">— Select employee —</option>
+        ${empOpts}
+      </select>
+    </div>
+    <div class="fg-group full">
+      <label>Leave type</label>
+      <select id="adj-lt">
+        <option value="">— Select leave type —</option>
+        ${ltOpts}
+      </select>
+    </div>
+    <div class="fg-group">
+      <label>Adjustment (days)</label>
+      <input type="number" id="adj-days" value="0" step="0.5" placeholder="+3 or -1.5">
+    </div>
+    <div class="fg-group">
+      <label>Year</label>
+      <input type="number" id="adj-year" value="${new Date().getFullYear()}" min="2020" max="2030">
+    </div>
+    <div class="fg-group full">
+      <label>Reason</label>
+      <input type="text" id="adj-reason" placeholder="e.g. Correction, bonus day, carry-over adjustment">
+    </div>
   </div>
-  <div class="mactions"><button class="btn" onclick="closeModal()">Cancel</button>
-    <button class="btn btn-primary" onclick="doAdjust()">Apply adjustment</button></div>`);
+  <div style="font-size:11px;color:var(--txt3);margin-bottom:10px">
+    Positive values add days. Negative values deduct days. Changes are logged in the audit trail.
+  </div>
+  <div class="mactions">
+    <button class="btn" onclick="closeModal()">Cancel</button>
+    <button class="btn btn-primary" onclick="doAdjust()">Apply adjustment</button>
+  </div>`);
 }
 async function doAdjust() {
-  try { await POST('/leave-balances/adjust',{employee_id:parseInt(v('adj-emp')),leave_type_id:parseInt(v('adj-lt')),year:new Date().getFullYear(),adjustment:parseFloat(v('adj-days')),reason:v('adj-reason')}); closeModal(); toast('Balance adjusted'); navigate('leave-balance'); }
-  catch(e) { toast(e.message,'error'); }
+  const empId = parseInt(v('adj-emp'));
+  const ltId  = parseInt(v('adj-lt'));
+  const days  = parseFloat(v('adj-days'));
+  const year  = parseInt(v('adj-year'));
+  const reason = v('adj-reason');
+  if (!empId) { toast('Select an employee','error'); return; }
+  if (!ltId)  { toast('Select a leave type','error'); return; }
+  if (isNaN(days) || days === 0) { toast('Enter a non-zero adjustment','error'); return; }
+  try {
+    await POST('/leave-balances/adjust',{ employee_id:empId, leave_type_id:ltId, year, adjustment:days, reason });
+    closeModal(); toast(`Balance adjusted by ${days>0?'+':''}${days}d`); navigate('leave-balance');
+  } catch(e) { toast(e.message,'error'); }
 }
 function updateSim() {
   const rate=parseInt(document.getElementById('sr')?.value||2);
@@ -1488,23 +1766,33 @@ function updateSim() {
 }
 
 // ─── Employees ────────────────────────────────────────────────────────────────
+window._ed = { emps:[], cals:[] };
+function _emp(id) { return window._ed.emps.find(e=>e.id===id)||null; }
+
 async function vEmployees(el) {
   const [emps, cals] = await Promise.all([GET('/employees'), GET('/calendars')]);
+  window._ed = { emps, cals };
   el.innerHTML = `<div class="sh"><div class="st">Employee directory (${emps.length})</div>
-    <button class="btn btn-primary" onclick="openEmpModal(null,${JSON.stringify(cals).replace(/"/g,'&quot;')})">+ Add employee</button></div>
+    <button class="btn btn-primary" onclick="openEmpModal(null)">+ Add employee</button></div>
   <div class="tbl-wrap"><table>
-    <tr><th>Name</th><th>Dept</th><th>Role</th><th>Calendar</th><th>Balance policy</th><th></th></tr>
+    <tr><th>Name</th><th>Dept</th><th>Team</th><th>Manager</th><th>Company</th><th>Role</th><th>Calendar</th><th>Policy</th><th></th></tr>
     ${emps.map(e=>{const cal=cals.find(c=>c.id===e.cal_id)||{};return`<tr>
       <td><div style="display:flex;align-items:center;gap:7px">${avDiv(e,26)}${e.name}</div></td>
-      <td>${e.dept||'—'}</td>
+      <td style="font-size:12px">${e.dept||'—'}</td>
+      <td style="font-size:12px;color:var(--txt3)">${e.team||'—'}</td>
+      <td style="font-size:12px;color:var(--txt2)">${e.manager_name||'—'}</td>
+      <td style="font-size:12px;color:var(--txt3)">${e.company||'—'}</td>
       <td><span class="pill pill-gray">${e.role}</span></td>
       <td>${cal.name?`<span class="pill" style="background:${cal.color}18;color:${cal.color}">${cal.name}</span>`:'—'}</td>
       <td><span class="pill ${e.bal_type==='fixed'?'pill-blue':'pill-purple'}">${e.bal_type==='fixed'?'Fixed':'Accrual'}</span></td>
-      <td><button class="btn" style="font-size:11px;padding:3px 8px" onclick="openEmpModal(${JSON.stringify(e).replace(/"/g,'&quot;')},${JSON.stringify(cals).replace(/"/g,'&quot;')})">Edit</button></td>
+      <td><button class="btn" style="font-size:11px;padding:3px 8px" onclick="openEmpModal(${e.id})">Edit</button></td>
     </tr>`}).join('')}
   </table></div>`;
 }
-function openEmpModal(emp, cals) {
+function openEmpModal(idOrNull) {
+  const emp = idOrNull ? _emp(idOrNull) : null;
+  const cals = window._ed.cals;
+  const managers = window._ed.emps.filter(e=>e.role==='manager'&&e.active!==0);
   const isEdit = !!emp;
   showModal(isEdit?`Edit: ${emp.name}`:'Add employee',`
   <div class="fg">
@@ -1512,49 +1800,102 @@ function openEmpModal(emp, cals) {
     <div class="fg-group full"><label>Email</label><input type="email" id="em-email" value="${isEdit?emp.email||'':''}"></div>
     <div class="fg-group"><label>Department</label><input type="text" id="em-dept" value="${isEdit?emp.dept||'':''}"></div>
     <div class="fg-group"><label>Team</label><input type="text" id="em-team" value="${isEdit?emp.team||'':''}"></div>
+    <div class="fg-group"><label>Company</label><input type="text" id="em-company" value="${isEdit?emp.company||'':''}" placeholder="e.g. avaxiaTN"></div>
     <div class="fg-group"><label>Job title</label><input type="text" id="em-title" value="${isEdit?emp.title||'':''}"></div>
-    <div class="fg-group"><label>Role</label><select id="em-role"><option value="employee"${!isEdit||emp.role==='employee'?' selected':''}>Employee</option><option value="manager"${isEdit&&emp.role==='manager'?' selected':''}>Manager</option><option value="hr"${isEdit&&emp.role==='hr'?' selected':''}>HR Admin</option><option value="director"${isEdit&&emp.role==='director'?' selected':''}>Director</option></select></div>
-    <div class="fg-group"><label>Work calendar</label><select id="em-cal">${cals.map(c=>`<option value="${c.id}"${isEdit&&emp.cal_id===c.id?' selected':''}>${c.name}</option>`).join('')}</select></div>
-    <div class="fg-group"><label>Balance policy</label><select id="em-bal"><option value="fixed"${!isEdit||emp.bal_type==='fixed'?' selected':''}>Fixed annual</option><option value="accrual"${isEdit&&emp.bal_type==='accrual'?' selected':''}>Monthly accrual</option></select></div>
-    ${!isEdit?`<div class="fg-group full"><label>Initial password</label><input type="password" id="em-pass" placeholder="Set initial password"></div>`:''}
+    <div class="fg-group"><label>Role</label>
+      <select id="em-role">
+        <option value="employee"${!isEdit||emp.role==='employee'?' selected':''}>Employee</option>
+        <option value="manager"${isEdit&&emp.role==='manager'?' selected':''}>Manager</option>
+        <option value="hr"${isEdit&&emp.role==='hr'?' selected':''}>HR Admin</option>
+        <option value="director"${isEdit&&emp.role==='director'?' selected':''}>Director</option>
+      </select></div>
+    <div class="fg-group"><label>Direct manager</label>
+      <select id="em-manager">
+        <option value="">— None / unassigned —</option>
+        ${managers.map(m=>`<option value="${m.id}"${isEdit&&emp.manager_id==m.id?' selected':''}>${m.name}${m.dept?' ('+m.dept+')':''}</option>`).join('')}
+      </select></div>
+    <div class="fg-group"><label>Work calendar</label>
+      <select id="em-cal">${cals.map(c=>`<option value="${c.id}"${isEdit&&emp.cal_id===c.id?' selected':''}>${c.name}</option>`).join('')}</select></div>
+    <div class="fg-group"><label>Balance policy</label>
+      <select id="em-bal">
+        <option value="fixed"${!isEdit||emp.bal_type==='fixed'?' selected':''}>Fixed annual</option>
+        <option value="accrual"${isEdit&&emp.bal_type==='accrual'?' selected':''}>Monthly accrual</option>
+      </select></div>
   </div>
-  <div class="mactions"><button class="btn" onclick="closeModal()">Cancel</button>
-    <button class="btn btn-primary" onclick="saveEmp(${isEdit?emp.id:'null'})">Save</button></div>`);
+  ${isEdit?`<div style="margin-top:12px;padding:10px 12px;background:#fde8e8;border-radius:var(--r);border:1px solid #ef4444">
+    <div style="font-size:11px;color:#ef4444;margin-bottom:6px;font-weight:600">Danger zone — history &amp; balances are preserved</div>
+    <button class="btn btn-danger" style="font-size:12px;padding:4px 10px" onclick="confirmDeleteEmp(${emp.id})">Deactivate employee</button>
+  </div>`:''}
+  <div class="mactions">
+    <button class="btn" onclick="closeModal()">Cancel</button>
+    <button class="btn btn-primary" onclick="saveEmp(${isEdit?emp.id:'null'})">Save</button>
+  </div>`);
 }
 async function saveEmp(id) {
-  const data = { name:v('em-name'), email:v('em-email'), dept:v('em-dept'), team:v('em-team'), title:v('em-title'), role:v('em-role'), cal_id:v('em-cal'), bal_type:v('em-bal') };
+  const managerId = v('em-manager');
+  const data = { name:v('em-name'), email:v('em-email'), dept:v('em-dept'), team:v('em-team'), company:v('em-company'), title:v('em-title'), role:v('em-role'), manager_id:managerId?parseInt(managerId):null, cal_id:v('em-cal'), bal_type:v('em-bal') };
   try {
     if (id !== null) await PUT(`/employees/${id}`, data);
     else await POST('/employees', data);
     closeModal(); toast('Employee saved'); navigate('employees');
   } catch(e) { toast(e.message,'error'); }
 }
+async function deleteEmp(id, name) {
+  // Only called from table row (not inside modal) — safe to call showModal
+  showModal(`Deactivate employee?`, `
+  <div style="font-size:14px;color:var(--txt);margin-bottom:16px">
+    Deactivate <strong>${name||'this employee'}</strong>? Their leave history and balances are preserved.
+  </div>
+  <div class="mactions">
+    <button class="btn" onclick="closeModal()">Cancel</button>
+    <button class="btn btn-danger" onclick="confirmDeleteEmp(${id})">Deactivate</button>
+  </div>`);
+}
+async function confirmDeleteEmp(id) {
+  try {
+    await api('DELETE', `/employees/${id}`);
+    closeModal(); toast('Employee deactivated'); navigate('employees');
+  } catch(e) { toast(e.message, 'error'); }
+}
 
 // ─── Departments ──────────────────────────────────────────────────────────────
+window._dd = { depts:[], cals:[] };
+function _dept(id) { return window._dd.depts.find(d=>d.id===id)||null; }
+
 async function vDepartments(el) {
   const [depts, cals] = await Promise.all([GET('/departments'), GET('/calendars')]);
+  window._dd = { depts, cals };
   el.innerHTML = `<div class="sh"><div class="st">Departments & teams</div>
-    <button class="btn btn-primary" onclick="openDeptModal(null,${JSON.stringify(cals).replace(/"/g,'&quot;')})">+ Add department</button></div>
+    <button class="btn btn-primary" onclick="openDeptModal(null)">+ Add department</button></div>
   <div class="tbl-wrap"><table>
     <tr><th>Department</th><th>Teams</th><th>Default calendar</th><th></th></tr>
     ${depts.map(d=>{const cal=cals.find(c=>c.id===d.cal_id)||{};return`<tr>
       <td style="font-weight:600">${d.name}</td>
       <td style="font-size:12px;color:var(--txt2)">${d.teams.join(', ')||'—'}</td>
       <td>${cal.name?`<span class="pill" style="background:${cal.color}18;color:${cal.color}">${cal.name}</span>`:'—'}</td>
-      <td><button class="btn" style="font-size:11px;padding:3px 8px" onclick="openDeptModal(${JSON.stringify(d).replace(/"/g,'&quot;')},${JSON.stringify(cals).replace(/"/g,'&quot;')})">Edit</button></td>
+      <td><button class="btn" style="font-size:11px;padding:3px 8px" onclick="openDeptModal(${d.id})">Edit</button></td>
     </tr>`}).join('')}
   </table></div>`;
 }
-function openDeptModal(dept, cals) {
+function openDeptModal(idOrNull) {
+  const dept = idOrNull ? _dept(idOrNull) : null;
+  const cals = window._dd.cals;
   const isEdit = !!dept;
   showModal(isEdit?`Edit: ${dept.name}`:'Add department',`
   <div class="fg">
     <div class="fg-group full"><label>Department name</label><input type="text" id="dp-name" value="${isEdit?dept.name:''}"></div>
     <div class="fg-group full"><label>Teams (comma-separated)</label><input type="text" id="dp-teams" value="${isEdit?dept.teams.join(', '):''}"></div>
-    <div class="fg-group full"><label>Default work calendar</label><select id="dp-cal">${cals.map(c=>`<option value="${c.id}"${isEdit&&dept.cal_id===c.id?' selected':''}>${c.name}</option>`).join('')}</select></div>
+    <div class="fg-group full"><label>Default work calendar</label>
+      <select id="dp-cal">${cals.map(c=>`<option value="${c.id}"${isEdit&&dept.cal_id===c.id?' selected':''}>${c.name}</option>`).join('')}</select></div>
   </div>
-  <div class="mactions"><button class="btn" onclick="closeModal()">Cancel</button>
-    <button class="btn btn-primary" onclick="saveDept(${isEdit?dept.id:'null'})">Save</button></div>`);
+  ${isEdit?`<div style="margin-top:14px;padding:10px 12px;background:var(--red-lt,#fde8e8);border-radius:var(--r);border:1px solid var(--red,#ef4444)">
+    <div style="font-size:12px;color:var(--red,#ef4444);margin-bottom:6px">Danger zone</div>
+    <button class="btn btn-danger" style="font-size:12px" onclick="confirmDeleteDept(${dept.id})">Delete department</button>
+  </div>`:''}
+  <div class="mactions">
+    <button class="btn" onclick="closeModal()">Cancel</button>
+    <button class="btn btn-primary" onclick="saveDept(${isEdit?dept.id:'null'})">Save</button>
+  </div>`);
 }
 async function saveDept(id) {
   const teams = v('dp-teams').split(',').map(s=>s.trim()).filter(Boolean);
@@ -1562,6 +1903,23 @@ async function saveDept(id) {
   if (id !== null) data.id = id;
   try { await POST('/departments', data); closeModal(); toast('Department saved'); navigate('departments'); }
   catch(e) { toast(e.message,'error'); }
+}
+async function deleteDept(id, name) {
+  // Called from table row button (not inside a modal) — safe to use showModal
+  showModal(`Delete department?`, `
+  <div style="font-size:14px;color:var(--txt);margin-bottom:16px">
+    Delete <strong>${name||id}</strong>? Employees in this department will keep their dept field but the department entry will be removed.
+  </div>
+  <div class="mactions">
+    <button class="btn" onclick="closeModal()">Cancel</button>
+    <button class="btn btn-danger" onclick="confirmDeleteDept(${id})">Delete</button>
+  </div>`);
+}
+async function confirmDeleteDept(id) {
+  try {
+    await api('DELETE', `/departments/${id}`);
+    closeModal(); toast('Department deleted'); navigate('departments');
+  } catch(e) { toast(e.message, 'error'); }
 }
 
 // ─── System settings ──────────────────────────────────────────────────────────
@@ -1647,6 +2005,19 @@ async function vEntraConfig(el) {
         <div class="fg-group full"><label>Default calendar for new users</label>
           <select id="ec-cal">${cals.map(c=>`<option value="${c.id}"${cfg.default_cal_id===c.id?' selected':''}>${c.name}</option>`).join('')}</select></div>
         <div class="fg-group full"><label style="display:flex;align-items:center;gap:8px">${mkToggle(cfg.auto_add_users,'tog-autouser')} Auto-add new Entra users</label></div>
+        <div class="fg-group full">
+          <label>Company filter (sync only specific company)</label>
+          <select id="ec-company">
+            <option value="*"${(cfg.company_filter||'*')==='*'?' selected':''}>* — All companies</option>
+            ${[...(new Set(
+              (await GET('/employees').catch(()=>[])).map(e=>e.company).filter(Boolean)
+            ))].sort().map(c=>`<option value="${c}"${cfg.company_filter===c?' selected':''}>${c}</option>`).join('')}
+          </select>
+          <div style="font-size:11px;color:var(--txt3);margin-top:3px">
+            Populated from companyName field in Entra ID. Select a specific company to sync only those employees.
+            Custom values not in the list are also accepted — type them in the Entra user's companyName property.
+          </div>
+        </div>
       </div>
       <div style="margin-top:14px;display:flex;gap:8px">
         <button class="btn btn-primary" onclick="triggerSync()">Force sync now</button>
@@ -1687,7 +2058,7 @@ function startSyncStream() {
   es.onerror = () => es.close();
 }
 async function saveEntra() {
-  const data = { tenant_id:v('ec-tid'), client_id:v('ec-cid'), client_secret:v('ec-sec'), redirect_uri:v('ec-redir'), sync_interval_min:parseInt(v('ec-int')), idle_threshold_min:parseInt(v('ec-idle')), default_cal_id:v('ec-cal'), auto_add_users:document.getElementById('tog-autouser')?.classList.contains('on')?1:0 };
+  const data = { tenant_id:v('ec-tid'), client_id:v('ec-cid'), client_secret:v('ec-sec'), redirect_uri:v('ec-redir'), sync_interval_min:parseInt(v('ec-int')), idle_threshold_min:parseInt(v('ec-idle')), default_cal_id:v('ec-cal'), company_filter:v('ec-company')||'*', auto_add_users:document.getElementById('tog-autouser')?.classList.contains('on')?1:0 };
   try { await POST('/entra/config', data); toast('Entra credentials saved'); checkEntraStatus(); }
   catch(e) { toast(e.message,'error'); }
 }
@@ -1794,7 +2165,7 @@ async function vEmailSettings(el) {
         <div class="fg-group"><label>Username / email</label><input type="email" id="es-user" value="${s.smtp_user||''}" placeholder="noreply@company.com"></div>
         <div class="fg-group"><label>Password / app password</label><input type="password" id="es-pass" value="${s.smtp_pass||''}" placeholder="App password or SMTP password"></div>
         <div class="fg-group"><label>From address</label><input type="email" id="es-from" value="${s.smtp_from||''}" placeholder="noreply@company.com"></div>
-        <div class="fg-group"><label>From name</label><input type="text" id="es-fname" value="${s.smtp_from_name||'Avaxia HR'}" placeholder="Avaxia HR"></div>
+        <div class="fg-group"><label>From name</label><input type="text" id="es-fname" value="${s.smtp_from_name||'WorkIQ HR'}" placeholder="WorkIQ HR"></div>
       </div>
       <div style="display:flex;gap:8px;margin-top:14px">
         <button class="btn btn-primary" onclick="saveEmailSettings()">Save SMTP settings</button>
@@ -1825,7 +2196,7 @@ async function vEmailSettings(el) {
       <strong style="color:var(--txt)">To:</strong> alex@company.com<br><br>
       Hi Alex,<br><br>
       Your leave request <strong>LR-001</strong> (Annual Leave, 3 days: 2026-06-01 → 2026-06-03) has been <strong style="color:var(--grn)">approved</strong> by all approvers.<br><br>
-      <em>— Avaxia HR Platform</em>
+      <em>— WorkIQ HR Platform</em>
     </div>
     <div style="margin-top:10px;font-size:11px;color:var(--txt3)">
       To enable real email sending: <code>npm install nodemailer</code> in your workiq2 folder, then restart the server.

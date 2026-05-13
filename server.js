@@ -331,6 +331,11 @@ const server = http.createServer(async (req, res) => {
       Q.saveEmployee(body, emp.name);
       return json(res, 200, { ok: true });
     }
+    if (method === 'DELETE') {
+      if (!requireRole(emp, res, 'hr')) return;
+      Q.deleteEmployee(empId, emp.name);
+      return json(res, 200, { ok: true });
+    }
   }
   if (/^\/api\/employees\/(\d+)\/calendar$/.test(pathname)) {
     const empId = parseInt(pathname.split('/')[3]);
@@ -344,7 +349,9 @@ const server = http.createServer(async (req, res) => {
     const emp = requireAuth(req, res); if (!emp) return;
     if (!requireRole(emp, res, 'hr')) return;
     const body = await readBody(req);
-    const count = Q.assignCalendarByDept(body.dept, body.cal_id, body.override, emp.name);
+    let count = 0;
+    if (body.team)      count = Q.assignCalendarByTeam(body.team, body.cal_id, emp.name);
+    else if (body.dept) count = Q.assignCalendarByDept(body.dept, body.cal_id, body.override, emp.name);
     return json(res, 200, { ok: true, count });
   }
 
@@ -356,6 +363,16 @@ const server = http.createServer(async (req, res) => {
       if (!requireRole(emp, res, 'hr')) return;
       const body = await readBody(req);
       Q.saveDepartment(body, emp.name);
+      return json(res, 200, { ok: true });
+    }
+  }
+  if (/^\/api\/departments\/(\d+)$/.test(pathname)) {
+    const deptId = parseInt(pathname.split('/')[3]);
+    const emp = requireAuth(req, res); if (!emp) return;
+    if (method === 'DELETE') {
+      if (!requireRole(emp, res, 'hr')) return;
+      db.prepare('DELETE FROM departments WHERE id=?').run(deptId);
+      db.prepare('INSERT INTO audit_log (actor_name,action,target) VALUES (?,?,?)').run(emp.name, 'Department deleted', String(deptId));
       return json(res, 200, { ok: true });
     }
   }
@@ -412,8 +429,16 @@ const server = http.createServer(async (req, res) => {
     const emp = requireAuth(req, res); if (!emp) return;
     if (method === 'GET') {
       const filters = {};
+      // Employee: own leaves only
       if (emp.role === 'employee') filters.employeeId = emp.id;
+      // Manager: their dept + optional status filter
+      if (emp.role === 'manager') {
+        const mgr = db.prepare('SELECT dept FROM employees WHERE id=?').get(emp.id);
+        if (mgr?.dept) filters.managerDept = mgr.dept;
+      }
       if (parsed.query.status) filters.status = parsed.query.status;
+      if (parsed.query.dept)   filters.dept   = parsed.query.dept;
+      if (parsed.query.team)   filters.team   = parsed.query.team;
       return json(res, 200, Q.getLeaveRequests(filters));
     }
     if (method === 'POST') {

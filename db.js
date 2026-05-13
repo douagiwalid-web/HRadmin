@@ -44,6 +44,8 @@ db.exec(`
     initials     TEXT NOT NULL DEFAULT 'XX',
     dept         TEXT,
     team         TEXT,
+    company      TEXT,
+    manager_id   INTEGER REFERENCES employees(id),
     cal_id       TEXT REFERENCES calendars(id),
     role         TEXT NOT NULL DEFAULT 'employee',
     title        TEXT,
@@ -156,7 +158,17 @@ db.exec(`
   );
 `);
 
-// ── Seed defaults if empty ────────────────────────────────────────────────────
+// ── Migrations for existing databases ────────────────────────────────────────
+try { db.exec(`ALTER TABLE employees ADD COLUMN company TEXT`);    } catch {}
+try { db.exec(`ALTER TABLE employees ADD COLUMN manager_id INTEGER REFERENCES employees(id)`); } catch {}
+try { db.exec(`ALTER TABLE entra_config ADD COLUMN company_filter TEXT DEFAULT '*'`); } catch {}
+try { db.exec(`CREATE TABLE IF NOT EXISTS employee_presence (
+  employee_id INTEGER PRIMARY KEY REFERENCES employees(id),
+  entra_id TEXT, availability TEXT, activity TEXT,
+  status_message TEXT, synced_at TEXT
+)`); } catch {}
+
+
 function seedIfEmpty() {
   const hasCalendars = db.prepare('SELECT COUNT(*) as c FROM calendars').get().c;
   if (hasCalendars > 0) return;
@@ -288,7 +300,7 @@ function seedIfEmpty() {
   setSetting.run('email_on_sync','0');
 
   // Entra config placeholder
-  db.prepare(`INSERT OR IGNORE INTO entra_config (id) VALUES (1)`).run();
+  db.prepare(`INSERT OR IGNORE INTO entra_config (id,sync_interval_min,idle_threshold_min) VALUES (1,5,15)`).run();
 
   // Sample activity log
   const insertAct = db.prepare(`INSERT INTO activity_log (employee_id,entra_id,event_type,event_time,ip_address) VALUES (?,?,?,?,?)`);
@@ -343,35 +355,66 @@ const Q = {
   },
 
   // Employees
-  getEmployees: () => db.prepare('SELECT * FROM employees WHERE active=1 ORDER BY name').all(),
+  getEmployees: () => db.prepare(`
+    SELECT e.*, m.name as manager_name
+    FROM employees e
+    LEFT JOIN employees m ON e.manager_id = m.id
+    WHERE e.active=1 ORDER BY e.name
+  `).all(),
   getEmployee:  (id) => db.prepare('SELECT * FROM employees WHERE id=?').get(id),
   getEmployeeByEmail: (email) => db.prepare('SELECT * FROM employees WHERE email=?').get(email),
+
+  // Get all employees who report to a given manager
+  getDirectReports: (managerId) => db.prepare(
+    'SELECT * FROM employees WHERE manager_id=? AND active=1 ORDER BY name'
+  ).all(managerId),
+
   saveEmployee: (data, actorName) => {
+    const managerId = data.manager_id ? parseInt(data.manager_id) : null;
     if (data.id) {
-      db.prepare('UPDATE employees SET name=?,email=?,dept=?,team=?,cal_id=?,role=?,title=?,bal_type=?,av_bg=?,av_color=?,updated_at=datetime(\'now\') WHERE id=?')
-        .run(data.name,data.email,data.dept,data.team,data.cal_id,data.role||'employee',data.title,data.bal_type||'fixed',data.av_bg||'#e6f2fb',data.av_color||'#004e8c',data.id);
-      db.prepare('INSERT INTO audit_log (actor_name,action,target) VALUES (?,?,?)').run(actorName,'Employee updated',data.name);
+      db.prepare(`UPDATE employees SET name=?,email=?,dept=?,team=?,company=?,manager_id=?,
+        cal_id=?,role=?,title=?,bal_type=?,av_bg=?,av_color=?,updated_at=datetime('now') WHERE id=?`)
+        .run(data.name, data.email, data.dept||null, data.team||null, data.company||null,
+          managerId, data.cal_id||null, data.role||'employee', data.title||null,
+          data.bal_type||'fixed', data.av_bg||'#e6f2fb', data.av_color||'#004e8c', data.id);
+      db.prepare('INSERT INTO audit_log (actor_name,action,target) VALUES (?,?,?)').run(actorName, 'Employee updated', data.name);
       return data.id;
     } else {
       const ini = (data.name||'XX').split(' ').map(w=>w[0]).join('').slice(0,2).toUpperCase();
-      const r = db.prepare('INSERT INTO employees (name,email,initials,dept,team,cal_id,role,title,bal_type,av_bg,av_color) VALUES (?,?,?,?,?,?,?,?,?,?,?)')
-        .run(data.name,data.email,ini,data.dept,data.team,data.cal_id,data.role||'employee',data.title,data.bal_type||'fixed',data.av_bg||'#e6f2fb',data.av_color||'#004e8c');
-      db.prepare('INSERT INTO audit_log (actor_name,action,target) VALUES (?,?,?)').run(actorName,'Employee added',data.name);
+      const r = db.prepare(`INSERT INTO employees
+        (name,email,initials,dept,team,company,manager_id,cal_id,role,title,bal_type,av_bg,av_color)
+        VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)`)
+        .run(data.name, data.email, ini, data.dept||null, data.team||null, data.company||null,
+          managerId, data.cal_id||null, data.role||'employee', data.title||null,
+          data.bal_type||'fixed', data.av_bg||'#e6f2fb', data.av_color||'#004e8c');
+      db.prepare('INSERT INTO audit_log (actor_name,action,target) VALUES (?,?,?)').run(actorName, 'Employee added', data.name);
       return r.lastInsertRowid;
     }
   },
   assignCalendar: (employeeId, calId, actorName) => {
     const emp = db.prepare('SELECT name FROM employees WHERE id=?').get(employeeId);
     const cal = db.prepare('SELECT name FROM calendars WHERE id=?').get(calId);
-    db.prepare('UPDATE employees SET cal_id=?,updated_at=datetime(\'now\') WHERE id=?').run(calId,employeeId);
-    db.prepare('INSERT INTO audit_log (actor_name,action,target,detail) VALUES (?,?,?,?)').run(actorName,`Calendar assigned`,emp?.name||employeeId,`→ ${cal?.name||calId}`);
+    db.prepare('UPDATE employees SET cal_id=?,updated_at=datetime(\'now\') WHERE id=?').run(calId, employeeId);
+    db.prepare('INSERT INTO audit_log (actor_name,action,target,detail) VALUES (?,?,?,?)').run(actorName, 'Calendar assigned', emp?.name||employeeId, `→ ${cal?.name||calId}`);
   },
   assignCalendarByDept: (dept, calId, overrideIndividual, actorName) => {
     const count = db.prepare('SELECT COUNT(*) as c FROM employees WHERE dept=? AND active=1').get(dept).c;
-    db.prepare('UPDATE employees SET cal_id=?,updated_at=datetime(\'now\') WHERE dept=? AND active=1').run(calId,dept);
+    db.prepare('UPDATE employees SET cal_id=?,updated_at=datetime(\'now\') WHERE dept=? AND active=1').run(calId, dept);
     const cal = db.prepare('SELECT name FROM calendars WHERE id=?').get(calId);
-    db.prepare('INSERT INTO audit_log (actor_name,action,target,detail) VALUES (?,?,?,?)').run(actorName,`Bulk calendar assignment`,dept,`${count} employees → ${cal?.name||calId}`);
+    db.prepare('INSERT INTO audit_log (actor_name,action,target,detail) VALUES (?,?,?,?)').run(actorName, 'Bulk calendar assignment', dept, `${count} employees → ${cal?.name||calId}`);
     return count;
+  },
+  assignCalendarByTeam: (team, calId, actorName) => {
+    const count = db.prepare('SELECT COUNT(*) as c FROM employees WHERE team=? AND active=1').get(team).c;
+    db.prepare('UPDATE employees SET cal_id=?,updated_at=datetime(\'now\') WHERE team=? AND active=1').run(calId, team);
+    const cal = db.prepare('SELECT name FROM calendars WHERE id=?').get(calId);
+    db.prepare('INSERT INTO audit_log (actor_name,action,target,detail) VALUES (?,?,?,?)').run(actorName, 'Bulk calendar assignment by team', team, `${count} employees → ${cal?.name||calId}`);
+    return count;
+  },
+  deleteEmployee: (id, actorName) => {
+    const emp = db.prepare('SELECT name FROM employees WHERE id=?').get(id);
+    db.prepare('UPDATE employees SET active=0,updated_at=datetime(\'now\') WHERE id=?').run(id);
+    db.prepare('INSERT INTO audit_log (actor_name,action,target) VALUES (?,?,?)').run(actorName, 'Employee deactivated', emp?.name||id);
   },
 
   // Departments
@@ -437,11 +480,36 @@ const Q = {
 
   // Leave requests
   getLeaveRequests: (filters={}) => {
-    let sql = `SELECT lr.*, e.name as emp_name, e.dept, e.initials, e.av_bg, e.av_color, lt.name as type_name FROM leave_requests lr JOIN employees e ON lr.employee_id=e.id JOIN leave_types lt ON lr.leave_type_id=lt.id WHERE 1=1`;
+    let sql = `SELECT lr.*, e.name as emp_name, e.dept, e.team, e.company,
+               e.initials, e.av_bg, e.av_color, lt.name as type_name
+               FROM leave_requests lr
+               JOIN employees e ON lr.employee_id=e.id
+               JOIN leave_types lt ON lr.leave_type_id=lt.id
+               WHERE 1=1`;
     const params = [];
-    if (filters.employeeId) { sql += ' AND lr.employee_id=?'; params.push(filters.employeeId); }
-    if (filters.status)     { sql += ' AND lr.status=?';      params.push(filters.status); }
-    if (filters.dept)       { sql += ' AND e.dept=?';         params.push(filters.dept); }
+    if (filters.employeeId)  { sql += ' AND lr.employee_id=?';  params.push(filters.employeeId); }
+    if (filters.status)      { sql += ' AND lr.status=?';       params.push(filters.status); }
+    if (filters.dept)        { sql += ' AND e.dept=?';          params.push(filters.dept); }
+    if (filters.team)        { sql += ' AND e.team=?';          params.push(filters.team); }
+    if (filters.company)     { sql += ' AND e.company=?';       params.push(filters.company); }
+    // Manager scope: ONLY direct reports (manager_id = this manager's employee id)
+    // Fallback: if no direct reports assigned via manager_id, use dept match
+    if (filters.managerId) {
+      const directReports = db.prepare(
+        'SELECT id FROM employees WHERE manager_id=? AND active=1'
+      ).all(filters.managerId).map(r=>r.id);
+      if (directReports.length > 0) {
+        sql += ` AND lr.employee_id IN (${directReports.map(()=>'?').join(',')})`;
+        params.push(...directReports);
+      } else if (filters.managerDept) {
+        // Fallback to dept if no explicit reports assigned yet
+        sql += ' AND e.dept=?';
+        params.push(filters.managerDept);
+      } else {
+        // No reports, no dept — return nothing (safer than showing everything)
+        sql += ' AND 1=0';
+      }
+    }
     sql += ' ORDER BY lr.created_at DESC';
     const rows = db.prepare(sql).all(...params);
     return rows.map(r => ({
@@ -452,37 +520,54 @@ const Q = {
   submitLeaveRequest: (empId, data, actorName) => {
     const id = 'LR-' + String(Date.now()).slice(-6);
     const lt = db.prepare('SELECT * FROM leave_types WHERE id=?').get(data.leave_type_id);
+    const l3Days = parseFloat(Q.getSetting('approval_l3_threshold_days') || '5');
+    const levels = (lt && lt.approval_levels >= 3) || data.days > l3Days ? 3 : 2;
     db.prepare('INSERT INTO leave_requests (id,employee_id,leave_type_id,from_date,to_date,days,reason,status) VALUES (?,?,?,?,?,?,?,?)')
-      .run(id, empId, data.leave_type_id, data.from_date, data.to_date, data.days, data.reason||'', 'pending_manager');
-    // Build approval chain
-    const levels = data.days > (parseFloat(Q.getSetting('approval_l3_threshold_days')||'5')) || (lt && lt.approval_levels >= 3) ? 3 : 2;
-    const managerName = db.prepare("SELECT name FROM employees WHERE dept=(SELECT dept FROM employees WHERE id=?) AND role='manager' LIMIT 1").get(empId)?.name || 'Manager';
-    const hrName      = db.prepare("SELECT name FROM employees WHERE role='hr' LIMIT 1").get()?.name || 'HR Admin';
-    const dirName     = db.prepare("SELECT name FROM employees WHERE role='director' LIMIT 1").get()?.name || 'Director';
-    db.prepare('INSERT INTO leave_approvals (request_id,level,role,approver_name,status) VALUES (?,?,?,?,?)').run(id,1,'Manager',managerName,'pending');
-    db.prepare('INSERT INTO leave_approvals (request_id,level,role,approver_name,status) VALUES (?,?,?,?,?)').run(id,2,'HR Admin',hrName,'waiting');
-    if (levels === 3) db.prepare('INSERT INTO leave_approvals (request_id,level,role,approver_name,status) VALUES (?,?,?,?,?)').run(id,3,'Director',dirName,'waiting');
-    db.prepare('INSERT INTO audit_log (actor_name,action,target,detail) VALUES (?,?,?,?)').run(actorName,'Leave request submitted',id,`${data.days} days from ${data.from_date}`);
+      .run(id, empId, data.leave_type_id, data.from_date, data.to_date, data.days, data.reason || '', 'pending_manager');
+
+    // Find manager: prefer direct manager_id link, fall back to dept manager
+    const empRecord = db.prepare('SELECT dept, manager_id FROM employees WHERE id=?').get(empId);
+    let managerName = 'Manager';
+    if (empRecord?.manager_id) {
+      const directMgr = db.prepare('SELECT name FROM employees WHERE id=?').get(empRecord.manager_id);
+      if (directMgr) managerName = directMgr.name;
+    } else if (empRecord?.dept) {
+      const deptMgr = db.prepare("SELECT name FROM employees WHERE dept=? AND role='manager' AND active=1 LIMIT 1").get(empRecord.dept);
+      if (deptMgr) managerName = deptMgr.name;
+    }
+    const hrName  = db.prepare("SELECT name FROM employees WHERE role='hr' AND active=1 LIMIT 1").get()?.name || 'HR Admin';
+    const dirName = db.prepare("SELECT name FROM employees WHERE role='director' AND active=1 LIMIT 1").get()?.name || 'Director';
+
+    db.prepare('INSERT INTO leave_approvals (request_id,level,role,approver_name,status) VALUES (?,?,?,?,?)').run(id, 1, 'Manager',  managerName, 'pending');
+    db.prepare('INSERT INTO leave_approvals (request_id,level,role,approver_name,status) VALUES (?,?,?,?,?)').run(id, 2, 'HR Admin', hrName,      'waiting');
+    if (levels === 3)
+      db.prepare('INSERT INTO leave_approvals (request_id,level,role,approver_name,status) VALUES (?,?,?,?,?)').run(id, 3, 'Director', dirName, 'waiting');
+    db.prepare('INSERT INTO audit_log (actor_name,action,target,detail) VALUES (?,?,?,?)').run(actorName, 'Leave request submitted', id, `${data.days} days from ${data.from_date}`);
     return id;
   },
+
   approveLeaveRequest: (requestId, approverEmpId, comment, actorName) => {
     const req = db.prepare('SELECT * FROM leave_requests WHERE id=?').get(requestId);
     if (!req) throw new Error('Request not found');
     const pending = db.prepare("SELECT * FROM leave_approvals WHERE request_id=? AND status='pending' ORDER BY level LIMIT 1").get(requestId);
-    if (!pending) throw new Error('No pending approval step');
-    db.prepare("UPDATE leave_approvals SET status='done',approver_id=?,comment=?,decided_at=datetime('now') WHERE id=?").run(approverEmpId,comment||null,pending.id);
-    // Check next step
+    if (!pending) throw new Error('No pending approval step — may already be approved');
+    db.prepare("UPDATE leave_approvals SET status='done',approver_id=?,comment=?,decided_at=datetime('now') WHERE id=?")
+      .run(approverEmpId, comment || null, pending.id);
     const nextWaiting = db.prepare("SELECT * FROM leave_approvals WHERE request_id=? AND status='waiting' ORDER BY level LIMIT 1").get(requestId);
     if (nextWaiting) {
       db.prepare("UPDATE leave_approvals SET status='pending' WHERE id=?").run(nextWaiting.id);
-      db.prepare("UPDATE leave_requests SET status=?,updated_at=datetime('now') WHERE id=?").run(`pending_${nextWaiting.role.toLowerCase().replace(/\s+/g,'_')}`,requestId);
+      // Use consistent status strings: pending_manager / pending_hr / pending_director
+      const roleKey = nextWaiting.role.toLowerCase()
+        .replace('hr admin', 'hr').replace(/\s+/g, '_');
+      db.prepare("UPDATE leave_requests SET status=?,updated_at=datetime('now') WHERE id=?")
+        .run('pending_' + roleKey, requestId);
     } else {
       db.prepare("UPDATE leave_requests SET status='approved',updated_at=datetime('now') WHERE id=?").run(requestId);
-      // Deduct balance
       const year = new Date(req.from_date).getFullYear();
-      db.prepare('UPDATE leave_balances SET used=used+? WHERE employee_id=? AND leave_type_id=? AND year=?').run(req.days,req.employee_id,req.leave_type_id,year);
+      db.prepare('UPDATE leave_balances SET used=used+? WHERE employee_id=? AND leave_type_id=? AND year=?')
+        .run(req.days, req.employee_id, req.leave_type_id, year);
     }
-    db.prepare('INSERT INTO audit_log (actor_name,action,target,detail) VALUES (?,?,?,?)').run(actorName,'Leave approved',requestId,comment||'');
+    db.prepare('INSERT INTO audit_log (actor_name,action,target,detail) VALUES (?,?,?,?)').run(actorName, 'Leave approved', requestId, comment || '');
   },
   rejectLeaveRequest: (requestId, approverEmpId, reason, actorName) => {
     db.prepare("UPDATE leave_approvals SET status='rejected',approver_id=?,comment=?,decided_at=datetime('now') WHERE request_id=? AND status='pending'").run(approverEmpId,reason||null,requestId);
@@ -727,8 +812,13 @@ const Q = {
   getEntraConfig: () => db.prepare('SELECT * FROM entra_config WHERE id=1').get() || {},
   saveEntraConfig: (data, actorName) => {
     db.prepare('INSERT OR IGNORE INTO entra_config (id) VALUES (1)').run();
-    db.prepare('UPDATE entra_config SET tenant_id=?,client_id=?,client_secret=?,redirect_uri=?,sync_interval_min=?,idle_threshold_min=?,auto_add_users=?,default_cal_id=?,updated_at=datetime(\'now\') WHERE id=1')
-      .run(data.tenant_id,data.client_id,data.client_secret,data.redirect_uri,data.sync_interval_min||5,data.idle_threshold_min||15,data.auto_add_users?1:0,data.default_cal_id||null);
+    db.prepare(`UPDATE entra_config SET tenant_id=?,client_id=?,client_secret=?,redirect_uri=?,
+      sync_interval_min=?,idle_threshold_min=?,auto_add_users=?,default_cal_id=?,
+      company_filter=?,updated_at=datetime('now') WHERE id=1`)
+      .run(data.tenant_id, data.client_id, data.client_secret, data.redirect_uri,
+        data.sync_interval_min||5, data.idle_threshold_min||15,
+        data.auto_add_users?1:0, data.default_cal_id||null,
+        data.company_filter||'*');
     db.prepare('INSERT INTO audit_log (actor_name,action,target) VALUES (?,?,?)').run(actorName,'Entra ID config updated','entra_config');
   },
 

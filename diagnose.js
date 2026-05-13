@@ -279,6 +279,33 @@ async function main() {
     } catch {}
   }
 
+  // Manager relationship check
+  console.log('');
+  try {
+    const withManager = db.prepare('SELECT COUNT(*) as c FROM employees WHERE manager_id IS NOT NULL AND active=1').get().c;
+    const totalEmp    = db.prepare("SELECT COUNT(*) as c FROM employees WHERE active=1 AND role='employee'").get().c;
+    console.log(`Manager links: ${withManager} / ${totalEmp} employees have a manager assigned`);
+    if (withManager === 0) {
+      console.log(`  ${WARN} No manager assignments yet. Options:`);
+      console.log(`    a) Set managers in Azure AD (user profile → Manager field) — synced automatically`);
+      console.log(`    b) Assign manually in HR Admin → Employee Directory → Edit employee → Direct manager`);
+      console.log(`    c) If column missing: restart the server (pm2 restart workiq) to apply migration`);
+    } else {
+      const sample = db.prepare(`SELECT e.name, m.name as mgr_name FROM employees e
+        JOIN employees m ON e.manager_id=m.id WHERE e.active=1 LIMIT 5`).all();
+      console.log('  Sample assignments:');
+      sample.forEach(s => console.log(`    ${s.name.padEnd(25)} → ${s.mgr_name}`));
+    }
+  } catch(e) {
+    if (e.message.includes('no such column: manager_id')) {
+      console.log(`${WARN} manager_id column not yet in DB.`);
+      console.log(`  Fix: pm2 restart workiq  (the migration runs automatically on startup)`);
+      console.log(`  Then run: node diagnose.js  again`);
+    } else {
+      console.log(`${WARN} Manager check error: ${e.message}`);
+    }
+  }
+
   // ── 7. Summary + action items ────────────────────────────────────────────────
   printSection('7. SUMMARY & ACTION ITEMS');
   const actOk   = actTodayAfter > 0;

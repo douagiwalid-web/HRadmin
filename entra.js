@@ -136,31 +136,40 @@ async function runSync(cfg, broadcast) {
 
   // ── 1. User directory sync ────────────────────────────────────────────────────
   try {
+    // Fetch companyName along with other fields
     const users = await graphGetAll(token,
-      'users?$select=id,displayName,mail,userPrincipalName,department,jobTitle&$top=999');
+      'users?$select=id,displayName,mail,userPrincipalName,department,jobTitle,companyName&$top=999');
     log(`Found ${users.length} users in directory`);
+
+    // Apply company filter if set (e.g. 'avaxiaTN', '*' = all)
+    const companyFilter = cfg.company_filter || '*';
+    const filtered = companyFilter === '*'
+      ? users
+      : users.filter(u => (u.companyName || '').toLowerCase() === companyFilter.toLowerCase());
+    if (companyFilter !== '*') log(`Company filter '${companyFilter}': ${filtered.length} / ${users.length} users match`);
 
     const year = new Date().getFullYear();
     const ltRows = db.prepare('SELECT id, days_per_year FROM leave_types WHERE active=1').all();
     const insertBal = db.prepare('INSERT OR IGNORE INTO leave_balances (employee_id,leave_type_id,year,entitled,accrued,used,adjustment) VALUES (?,?,?,?,?,0,0)');
 
     if (cfg.auto_add_users) {
-      users.forEach(u => {
+      filtered.forEach(u => {
         const email = u.mail || u.userPrincipalName;
         if (!email) return;
         const existing = Q.getEmployeeByEmail(email);
         const ini = (u.displayName || 'XX').split(' ').map(w => w[0]).join('').slice(0, 2).toUpperCase();
+        const company = u.companyName || null;
         let empId;
         if (!existing) {
-          const r = db.prepare('INSERT OR IGNORE INTO employees (entra_id,name,email,initials,dept,title,cal_id,role,bal_type,av_bg,av_color) VALUES (?,?,?,?,?,?,?,?,?,?,?)')
+          const r = db.prepare('INSERT OR IGNORE INTO employees (entra_id,name,email,initials,dept,title,company,cal_id,role,bal_type,av_bg,av_color) VALUES (?,?,?,?,?,?,?,?,?,?,?,?)')
             .run(u.id, u.displayName || email, email, ini, u.department || '', u.jobTitle || '',
-              cfg.default_cal_id || 'cal-ae', 'employee', 'fixed', '#e6f2fb', '#004e8c');
+              company, cfg.default_cal_id || 'cal-ae', 'employee', 'fixed', '#e6f2fb', '#004e8c');
           empId = r.lastInsertRowid;
           usersAdded++;
         } else {
-          db.prepare("UPDATE employees SET entra_id=?,name=?,dept=?,title=?,updated_at=datetime('now') WHERE email=?")
+          db.prepare("UPDATE employees SET entra_id=?,name=?,dept=?,title=?,company=?,updated_at=datetime('now') WHERE email=?")
             .run(u.id, u.displayName || existing.name, u.department || existing.dept,
-              u.jobTitle || existing.title, email);
+              u.jobTitle || existing.title, company, email);
           empId = existing.id;
           usersUpdated++;
         }

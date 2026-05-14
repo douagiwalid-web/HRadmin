@@ -153,10 +153,10 @@ nav{flex:1;padding:8px 0;overflow-y:auto}
 
     <div style="font-size:13px;font-weight:600;margin-bottom:10px">Demo profiles</div>
     <div class="pgrid" id="pgrid">
-      <div class="pcard" data-id="employee" onclick="selProfile(this)"><div style="display:flex;align-items:center;gap:7px;margin-bottom:4px"><div class="av" style="width:26px;height:26px;background:#e6f2fb;color:#004e8c;font-size:10px">AJ</div><div><div class="pcard-name">Employee Test</div><div class="pcard-role">Employee</div></div></div><div class="pcard-cred">alex@company.com / employee123</div></div>
-      <div class="pcard" data-id="manager" onclick="selProfile(this)"><div style="display:flex;align-items:center;gap:7px;margin-bottom:4px"><div class="av" style="width:26px;height:26px;background:#e6f9f0;color:#0d5c30;font-size:10px">MC</div><div><div class="pcard-name">Manager Test</div><div class="pcard-role">Manager</div></div></div><div class="pcard-cred">maria@company.com / manager123</div></div>
-      <div class="pcard" data-id="hr" onclick="selProfile(this)"><div style="display:flex;align-items:center;gap:7px;margin-bottom:4px"><div class="av" style="width:26px;height:26px;background:#fef3e6;color:#7a4a00;font-size:10px">SA</div><div><div class="pcard-name">HR Test</div><div class="pcard-role">HR Admin</div></div></div><div class="pcard-cred">sarah@company.com / hr123</div></div>
-      <div class="pcard" data-id="director" onclick="selProfile(this)"><div style="display:flex;align-items:center;gap:7px;margin-bottom:4px"><div class="av" style="width:26px;height:26px;background:#f0e9fb;color:#4a1a8a;font-size:10px">DP</div><div><div class="pcard-name">Director Test</div><div class="pcard-role">Director</div></div></div><div class="pcard-cred">david@company.com / director123</div></div>
+      <div class="pcard" data-id="employee" onclick="selProfile(this)"><div style="display:flex;align-items:center;gap:7px;margin-bottom:4px"><div class="av" style="width:26px;height:26px;background:#e6f2fb;color:#004e8c;font-size:10px">AJ</div><div><div class="pcard-name">Alex Johnson</div><div class="pcard-role">Employee</div></div></div><div class="pcard-cred">alex@company.com / employee123</div></div>
+      <div class="pcard" data-id="manager" onclick="selProfile(this)"><div style="display:flex;align-items:center;gap:7px;margin-bottom:4px"><div class="av" style="width:26px;height:26px;background:#e6f9f0;color:#0d5c30;font-size:10px">MC</div><div><div class="pcard-name">Maria Chen</div><div class="pcard-role">Manager</div></div></div><div class="pcard-cred">maria@company.com / manager123</div></div>
+      <div class="pcard" data-id="hr" onclick="selProfile(this)"><div style="display:flex;align-items:center;gap:7px;margin-bottom:4px"><div class="av" style="width:26px;height:26px;background:#fef3e6;color:#7a4a00;font-size:10px">SA</div><div><div class="pcard-name">Sarah Ahmed</div><div class="pcard-role">HR Admin</div></div></div><div class="pcard-cred">sarah@company.com / hr123</div></div>
+      <div class="pcard" data-id="director" onclick="selProfile(this)"><div style="display:flex;align-items:center;gap:7px;margin-bottom:4px"><div class="av" style="width:26px;height:26px;background:#f0e9fb;color:#4a1a8a;font-size:10px">DP</div><div><div class="pcard-name">David Park</div><div class="pcard-role">Director</div></div></div><div class="pcard-cred">david@company.com / director123</div></div>
     </div>
     <div id="lerr" class="lerr"></div>
     <button class="btn btn-primary" style="width:100%;padding:10px;font-size:14px;justify-content:center" onclick="doLogin()">Sign in with selected profile</button>
@@ -971,9 +971,13 @@ function renderActOverview(el, data, date) {
       <td style="text-align:center">${e.session_count||0}</td>
       <td style="font-weight:600;color:var(--grn)">${fmtMin(e.active_min)}</td>
       <td style="color:var(--txt3)">${fmtMin(e.offline_min)}</td>
-      <td style="font-family:monospace;font-size:10px;color:var(--txt3)">${e.last_ip||'—'}</td>
+      <td style="font-family:monospace;font-size:10px;color:var(--txt3)">${e.last_ip ? ipCell(e.last_ip) : '—'}</td>
     </tr>`).join('')}
   </table></div>`;
+
+  // Load IP info for all unique IPs in overview
+  const ips = [...new Set(data.map(e=>e.last_ip).filter(Boolean))];
+  ips.forEach(ip => loadIpInfo(ip));
 
   const statusCounts = [active.length, idle.length, dnd.length, offline.length, onLeave.length, holiday.length];
   chartCache.actPie = new Chart(document.getElementById('act-pie'), {
@@ -1124,9 +1128,56 @@ function renderActEvents(el, data) {
       <td style="font-size:12px">${e.dept||'—'}</td>
       <td style="font-size:12px;color:var(--txt3)">${e.team||'—'}</td>
       <td><span class="pill ${e.event_type==='SignIn'?'pill-green':'pill-gray'}">${e.event_type}</span></td>
-      <td style="font-family:monospace;font-size:11px;color:var(--txt3)">${e.ip_address||'—'}</td>
+      <td>${e.ip_address ? ipCell(e.ip_address) : '—'}</td>
     </tr>`).join('') : '<tr><td colspan="6" style="text-align:center;color:var(--txt2);padding:20px">No events for this date/filter.</td></tr>'}
   </table></div>`;
+  // Load IP info for all unique IPs
+  const ips = [...new Set(data.slice(0,200).map(e=>e.ip_address).filter(Boolean))];
+  ips.forEach(ip => loadIpInfo(ip));
+}
+
+// IP cell with lazy-loaded tooltip
+function ipCell(ip) {
+  return `<span class="ip-cell" data-ip="${ip}" style="font-family:monospace;font-size:11px;cursor:help;border-bottom:1px dashed var(--bdr)">${ip}</span>`;
+}
+
+// IP info cache (client-side)
+const _ipInfoCache = {};
+
+async function loadIpInfo(ip) {
+  if (_ipInfoCache[ip]) { applyIpTooltip(ip, _ipInfoCache[ip]); return; }
+  try {
+    const info = await GET(`/ip-info/${ip}`);
+    _ipInfoCache[ip] = info;
+    applyIpTooltip(ip, info);
+  } catch {}
+}
+
+function applyIpTooltip(ip, info) {
+  document.querySelectorAll(`.ip-cell[data-ip="${ip}"]`).forEach(el => {
+    if (info.type === 'office') {
+      el.style.color = '#22c55e';
+      el.style.fontWeight = '600';
+      el.title = `🏢 ${info.label}`;
+      el.innerHTML = `🏢 ${ip}`;
+    } else if (info.type === 'private') {
+      el.style.color = 'var(--txt3)';
+      el.title = 'Private / Internal network';
+    } else if (info.type === 'external') {
+      const flag = info.countryCode ? String.fromCodePoint(...[...info.countryCode.toUpperCase()].map(c=>0x1F1E6+c.charCodeAt(0)-65)) : '';
+      const riskIcon = info.risk==='high'?'🔴':info.risk==='medium'?'🟡':'🟢';
+      el.style.color = info.riskColor || 'var(--txt)';
+      el.title = [
+        `${flag} ${info.city}, ${info.country}`,
+        `ISP: ${info.isp}`,
+        `Risk: ${info.risk.toUpperCase()} ${riskIcon}`,
+        info.proxy ? '⚠ Proxy/VPN detected' : '',
+        info.hosting ? '⚠ Hosting/Datacenter' : '',
+      ].filter(Boolean).join('\n');
+      // Show flag inline
+      if (flag) el.innerHTML = `${flag} ${ip}`;
+    }
+  });
 }
 
 // ─── Approvals ────────────────────────────────────────────────────────────────
@@ -1208,7 +1259,10 @@ async function vHRDash(el) {
     <div class="metric" style="border-left:3px solid var(--az)">
       <div class="metric-label">Total employees</div>
       <div class="metric-value">${d.headcount.total}</div>
-      <div class="metric-sub">${d.headcount.byRole.map(r=>`${r.role}: ${r.c}`).join(' · ')}${d.headcount.excluded?`<br><span style="color:var(--txt3)">${d.headcount.excluded} without company excluded</span>`:''}</div>
+      <div class="metric-sub">${d.headcount.byRole.map(r => {
+        if (r.role === 'employee') return `employee: ${r.c - d.headcount.internCount}`;
+        return `${r.role}: ${r.c}`;
+      }).join(' · ')} · intern: ${d.headcount.internCount}${d.headcount.excluded?`<br><span style="color:var(--txt3)">${d.headcount.excluded} without company excluded</span>`:''}</div>
     </div>
     <div class="metric" style="border-left:3px solid #22c55e">
       <div class="metric-label">Active now (Teams)</div>
@@ -1255,7 +1309,7 @@ async function vHRDash(el) {
 
   <!-- Row 2: Team + Leave by type -->
   <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:16px">
-    <div class="card"><div class="card-title">Headcount by team</div>
+    <div class="card"><div class="card-title">Headcount by team <span style="font-size:10px;font-weight:400;color:var(--txt3)">· Employees vs Interns</span></div>
       <div style="position:relative;height:200px"><canvas id="hr-c4"></canvas></div></div>
     <div class="card"><div class="card-title">Leave days approved by type</div>
       <div style="position:relative;height:200px"><canvas id="hr-c5"></canvas></div></div>
@@ -1320,13 +1374,27 @@ async function vHRDash(el) {
     plugins:{ legend:{ display:false } }
   }});
 
-  // 4. Team horizontal bar
+  // 4. Team stacked bar — Employees vs Interns
+  const teamSplit = d.headcount.byTeamSplit || [];
   mkChart('hr-c4',{ type:'bar', data:{
-    labels: d.headcount.byTeam.map(r=>r.team),
-    datasets:[{ data:d.headcount.byTeam.map(r=>r.c), backgroundColor:COLORS, borderRadius:3 }]
-  }, options:{ indexAxis:'y', responsive:true, maintainAspectRatio:false,
-    plugins:{ legend:{ display:false } },
-    scales:{ x:{ beginAtZero:true, grid:gridFaint, ticks:tickSmall }, y:{ grid:{display:false}, ticks:tickSmall } }
+    labels: teamSplit.map(r=>r.team),
+    datasets:[
+      { label:'Employees', data:teamSplit.map(r=>r.employees),
+        backgroundColor:'#4285F4', borderRadius:0 },
+      { label:'Interns',   data:teamSplit.map(r=>r.interns),
+        backgroundColor:'#FBBC05', borderRadius:0 },
+    ]
+  }, options:{
+    indexAxis:'y', responsive:true, maintainAspectRatio:false,
+    plugins:{
+      legend:{ position:'bottom', labels:{ font:{size:11}, boxWidth:12, padding:12 } },
+      tooltip:{ callbacks:{ label: ctx => ` ${ctx.dataset.label}: ${ctx.raw}` } }
+    },
+    scales:{
+      x:{ stacked:true, beginAtZero:true, grid:gridFaint, ticks:tickSmall,
+          title:{ display:false } },
+      y:{ stacked:true, grid:{ display:false }, ticks:tickSmall }
+    }
   }});
 
   // 5. Leave by type doughnut
@@ -1428,15 +1496,72 @@ function buildManagerTable(emps) {
   </table></div>`;
 }
 
-// ─── All leaves ───────────────────────────────────────────────────────────────
 async function vAllLeaves(el) {
-  const reqs = await GET('/leave-requests');
+  const [reqs, lts] = await Promise.all([GET('/leave-requests'), GET('/leave-types')]);
   window._reqs = reqs;
-  el.innerHTML = `<div class="sh"><div class="st">All leave requests (${reqs.length})</div>
-    <button class="btn">Export CSV</button></div>
+  window._allLeavesReqs = reqs; // full unfiltered set
+  const year = new Date().getFullYear();
+  const fromDef = `${year}-01-01`;
+  const toDef   = `${year}-12-31`;
+  const typeIds  = lts.map(lt=>lt.id);
+
+  el.innerHTML = `
+  <!-- Filters bar -->
+  <div class="card" style="margin-bottom:12px;padding:12px 16px">
+    <div style="display:flex;gap:12px;align-items:flex-end;flex-wrap:wrap">
+      <div>
+        <div style="font-size:11px;color:var(--txt3);margin-bottom:4px">From date</div>
+        <input type="date" id="al-from" value="${fromDef}" style="font-size:12px;padding:5px 8px" onchange="applyLeaveFilters()">
+      </div>
+      <div>
+        <div style="font-size:11px;color:var(--txt3);margin-bottom:4px">To date</div>
+        <input type="date" id="al-to" value="${toDef}" style="font-size:12px;padding:5px 8px" onchange="applyLeaveFilters()">
+      </div>
+      <div style="flex:1;min-width:200px">
+        <div style="font-size:11px;color:var(--txt3);margin-bottom:4px">Leave types <span id="al-type-count" style="color:var(--az)">(all)</span></div>
+        <div style="display:flex;flex-wrap:wrap;gap:6px" id="al-type-chips">
+          ${lts.map(lt=>`<label style="display:flex;align-items:center;gap:5px;font-size:12px;cursor:pointer;padding:3px 8px;border-radius:12px;border:1px solid ${lt.color||'#ccc'};background:${lt.color||'#ccc'}18;user-select:none">
+            <input type="checkbox" checked value="${lt.id}" onchange="applyLeaveFilters()" style="width:12px;height:12px;accent-color:${lt.color||'#3b82f6'}">
+            ${lt.name}
+          </label>`).join('')}
+        </div>
+      </div>
+      <div style="display:flex;gap:8px;align-items:center">
+        <button class="btn" style="font-size:11px" onclick="resetLeaveFilters()">Reset</button>
+        <button class="btn btn-primary" style="font-size:11px" onclick="exportLeaveCSV()">⬇ Export CSV</button>
+      </div>
+    </div>
+  </div>
+  <div id="al-table-wrap"></div>`;
+
+  applyLeaveFilters();
+}
+
+function applyLeaveFilters() {
+  const from   = document.getElementById('al-from')?.value;
+  const to     = document.getElementById('al-to')?.value;
+  const checked = [...document.querySelectorAll('#al-type-chips input[type=checkbox]:checked')].map(cb=>cb.value);
+
+  const typeCount = document.getElementById('al-type-count');
+  const allTypes  = document.querySelectorAll('#al-type-chips input[type=checkbox]').length;
+  if (typeCount) typeCount.textContent = checked.length === allTypes ? '(all)' : `(${checked.length} selected)`;
+
+  let filtered = window._allLeavesReqs || [];
+
+  if (from) filtered = filtered.filter(r => r.to_date >= from);
+  if (to)   filtered = filtered.filter(r => r.from_date <= to);
+  if (checked.length > 0)
+    filtered = filtered.filter(r => checked.includes(String(r.leave_type_id)));
+
+  window._reqs = filtered; // update for showLeaveDetail lookup
+
+  const wrap = document.getElementById('al-table-wrap');
+  if (!wrap) return;
+  wrap.innerHTML = `
+  <div style="font-size:12px;color:var(--txt2);margin-bottom:8px">${filtered.length} record${filtered.length!==1?'s':''} matching filters</div>
   <div class="tbl-wrap"><table>
     <tr><th>ID</th><th>Employee</th><th>Dept</th><th>Type</th><th>Dates</th><th>Days</th><th>Chain</th><th>Status</th><th></th></tr>
-    ${reqs.map(r=>`<tr>
+    ${filtered.length ? filtered.map(r=>`<tr>
       <td style="font-family:monospace;font-size:11px">${r.id}</td>
       <td><div style="display:flex;align-items:center;gap:6px">${avDiv(r,22)}${r.emp_name}</div></td>
       <td style="font-size:12px;color:var(--txt2)">${r.dept||'—'}</td>
@@ -1446,8 +1571,48 @@ async function vAllLeaves(el) {
       <td>${miniChain(r.approvals)}</td>
       <td>${statusPill(r.status)}</td>
       <td><button class="btn" style="font-size:11px;padding:3px 8px" onclick="showLeaveDetail('${r.id}')">Details</button></td>
-    </tr>`).join('')}
+    </tr>`).join('') : '<tr><td colspan="9" style="text-align:center;color:var(--txt2);padding:20px">No records match the selected filters.</td></tr>'}
   </table></div>`;
+}
+
+function resetLeaveFilters() {
+  const year = new Date().getFullYear();
+  const fromEl = document.getElementById('al-from');
+  const toEl   = document.getElementById('al-to');
+  if (fromEl) fromEl.value = `${year}-01-01`;
+  if (toEl)   toEl.value   = `${year}-12-31`;
+  document.querySelectorAll('#al-type-chips input[type=checkbox]').forEach(cb => cb.checked = true);
+  applyLeaveFilters();
+}
+
+function exportLeaveCSV() {
+  const rows = window._reqs || [];
+  if (!rows.length) { toast('No records to export', 'error'); return; }
+  const headers = ['ID','Employee','Department','Team','Leave Type','From','To','Days','Status'];
+  const lines   = [headers.join(',')];
+  rows.forEach(r => {
+    lines.push([
+      r.id,
+      `"${(r.emp_name||'').replace(/"/g,'""')}"`,
+      `"${(r.dept||'').replace(/"/g,'""')}"`,
+      `"${(r.team||'').replace(/"/g,'""')}"`,
+      `"${(r.type_name||'').replace(/"/g,'""')}"`,
+      r.from_date,
+      r.to_date,
+      r.days,
+      r.status
+    ].join(','));
+  });
+  const blob = new Blob([lines.join('\n')], { type:'text/csv' });
+  const url  = URL.createObjectURL(blob);
+  const a    = document.createElement('a');
+  const from = document.getElementById('al-from')?.value || '';
+  const to   = document.getElementById('al-to')?.value   || '';
+  a.href     = url;
+  a.download = `leave_requests_${from}_${to}.csv`;
+  a.click();
+  URL.revokeObjectURL(url);
+  toast(`Exported ${rows.length} records`);
 }
 
 // ── Global request store — avoids JSON serialisation bugs in onclick attrs ────
@@ -2007,6 +2172,7 @@ function renderEmpTable(el) {
       case 'name':     av = a.name||'';         bv = b.name||'';         break;
       case 'dept':     av = a.dept||'';         bv = b.dept||'';         break;
       case 'team':     av = a.team||'';         bv = b.team||'';         break;
+      case 'title':    av = a.title||'';        bv = b.title||'';        break;
       case 'manager':  av = a.manager_name||''; bv = b.manager_name||''; break;
       case 'company':  av = a.company||'';      bv = b.company||'';      break;
       case 'role':     av = a.role||'';         bv = b.role||'';         break;
@@ -2030,7 +2196,7 @@ function renderEmpTable(el) {
   <div class="tbl-wrap"><table>
     <tr>
       ${th('Name','name')}${th('Dept','dept')}${th('Team','team')}
-      ${th('Manager','manager')}${th('Company','company')}${th('Role','role')}
+      ${th('Job Title','title')}${th('Manager','manager')}${th('Company','company')}${th('Role','role')}
       ${th('Calendar','calendar')}${th('Policy','policy')}
       <th></th>
     </tr>
@@ -2038,6 +2204,7 @@ function renderEmpTable(el) {
       <td><div style="display:flex;align-items:center;gap:7px">${avDiv(e,26)}${e.name}</div></td>
       <td style="font-size:12px">${e.dept||'—'}</td>
       <td style="font-size:12px;color:var(--txt3)">${e.team||'—'}</td>
+      <td style="font-size:12px;color:var(--txt2)">${e.title ? `<span style="display:inline-flex;align-items:center;gap:4px">${e.title.toLowerCase().includes('intern')?'<span style="font-size:9px;padding:1px 5px;border-radius:8px;background:#fef3e6;color:#b45309;font-weight:600">INTERN</span>':''}${e.title}</span>` : '—'}</td>
       <td style="font-size:12px;color:var(--txt2)">${e.manager_name||'—'}</td>
       <td style="font-size:12px;color:var(--txt3)">${e.company||'—'}</td>
       <td><span class="pill pill-gray">${e.role}</span></td>
@@ -2221,6 +2388,19 @@ async function vSystem(el) {
         ${tog('gdpr_mode','GDPR / privacy mode')}
       </div>
     </div>
+  </div>
+  <!-- Office IPs — full width card -->
+  <div class="card" style="margin-top:16px">
+    <div class="card-title">Office IP addresses <span style="font-size:11px;font-weight:400;color:var(--txt3)">— used for IP recognition in Activity page</span></div>
+    <div style="font-size:12px;color:var(--txt2);margin-bottom:12px">
+      Add your office public IPs here. These will be highlighted in green in the Activity page with the office name shown on hover.
+      Unknown IPs will show country + risk score from an external lookup.
+    </div>
+    <div id="office-ips-list"></div>
+    <button class="btn" style="margin-top:8px;font-size:12px" onclick="addOfficeIpRow()">+ Add office</button>
+    <div style="display:flex;justify-content:flex-end;margin-top:12px">
+      <button class="btn btn-primary" onclick="saveOfficeIps()">Save office IPs</button>
+    </div>
   </div>`;
   showSaveBtn(async () => {
     await POST('/settings', {
@@ -2234,9 +2414,50 @@ async function vSystem(el) {
       gdpr_mode: document.getElementById('tog-gdpr_mode')?.classList.contains('on')?'1':'0',
     });
   });
+  // Init office IPs editor
+  GET('/settings').then(s => {
+    let ips = [];
+    try { ips = JSON.parse(s.office_ips || '[]'); } catch {}
+    const list = document.getElementById('office-ips-list');
+    if (list) {
+      list.innerHTML = '';
+      ips.forEach(entry => addOfficeIpRow(entry.label, entry.ips.join(', ')));
+      if (!ips.length) addOfficeIpRow('', '');
+    }
+  }).catch(()=>{});
 }
 
-// ─── Entra ID config ──────────────────────────────────────────────────────────
+function addOfficeIpRow(label='', ips='') {
+  const list = document.getElementById('office-ips-list');
+  if (!list) return;
+  const row = document.createElement('div');
+  row.style.cssText = 'display:flex;gap:8px;align-items:center;margin-bottom:8px';
+  row.innerHTML = `
+    <input type="text" placeholder="Office name (e.g. Dubai Office)" value="${label}" style="flex:1;font-size:12px;padding:5px 8px" class="oip-label">
+    <input type="text" placeholder="IPs comma-separated (e.g. 5.31.29.122, 10.0.0.1)" value="${ips}" style="flex:2;font-size:12px;padding:5px 8px;font-family:monospace" class="oip-ips">
+    <button class="btn btn-danger" style="font-size:11px;padding:3px 8px" onclick="this.parentElement.remove()">✕</button>`;
+  list.appendChild(row);
+}
+
+async function saveOfficeIps() {
+  const rows = document.querySelectorAll('#office-ips-list > div');
+  const data = [];
+  rows.forEach(row => {
+    const label = row.querySelector('.oip-label')?.value?.trim();
+    const ipsRaw = row.querySelector('.oip-ips')?.value?.trim();
+    if (!label && !ipsRaw) return;
+    const ips = ipsRaw ? ipsRaw.split(',').map(s=>s.trim()).filter(Boolean) : [];
+    if (label) data.push({ label, ips });
+  });
+  try {
+    await POST('/settings', { office_ips: JSON.stringify(data) });
+    // Bust client-side IP cache so new labels appear immediately
+    Object.keys(_ipInfoCache).forEach(k => delete _ipInfoCache[k]);
+    toast(`${data.length} office IP entries saved`);
+  } catch(e) { toast(e.message, 'error'); }
+}
+
+
 async function vEntraConfig(el) {
   const cfg = await GET('/entra/config');
   const cals = await GET('/calendars');

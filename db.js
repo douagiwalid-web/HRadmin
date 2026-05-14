@@ -162,6 +162,19 @@ db.exec(`
 try { db.exec(`ALTER TABLE employees ADD COLUMN company TEXT`);    } catch {}
 try { db.exec(`ALTER TABLE employees ADD COLUMN manager_id INTEGER REFERENCES employees(id)`); } catch {}
 try { db.exec(`ALTER TABLE entra_config ADD COLUMN company_filter TEXT DEFAULT '*'`); } catch {}
+// Seed office_ips setting if missing
+try {
+  const existing = db.prepare("SELECT value FROM settings WHERE key='office_ips'").get();
+  if (!existing) {
+    db.prepare("INSERT INTO settings (key,value) VALUES ('office_ips',?)").run(
+      JSON.stringify([
+        { label:'Dubai Office',   ips:['5.31.29.122'] },
+        { label:'Tunisia Office', ips:['41.231.83.130','193.95.105.45'] },
+        { label:'Japan Office',   ips:['202.32.193.69','202.32.193.70'] }
+      ])
+    );
+  }
+} catch {}
 try { db.exec(`CREATE TABLE IF NOT EXISTS employee_presence (
   employee_id INTEGER PRIMARY KEY REFERENCES employees(id),
   entra_id TEXT, availability TEXT, activity TEXT,
@@ -256,6 +269,12 @@ function seedIfEmpty() {
   setSetting.run('org_name','Acme Corporation');
   setSetting.run('default_timezone','Asia/Dubai (UTC+4)');
   setSetting.run('working_hours_day','8');
+  // Office IP list (JSON: {label, ips:[]} array) — configurable in System Settings
+  setSetting.run('office_ips', JSON.stringify([
+    { label:'Dubai Office',   ips:['5.31.29.122'] },
+    { label:'Tunisia Office', ips:['41.231.83.130','193.95.105.45'] },
+    { label:'Japan Office',   ips:['202.32.193.69','202.32.193.70'] }
+  ]));
   setSetting.run('leave_year_reset','jan1');
   setSetting.run('min_notice_days','3');
   setSetting.run('max_consecutive_days','5');
@@ -605,7 +624,7 @@ const Q = {
       FROM employees e
       LEFT JOIN calendars c ON e.cal_id=c.id
       LEFT JOIN (SELECT * FROM employee_presence) ep ON ep.employee_id=e.id
-      WHERE e.active=1`;
+      WHERE e.active=1 AND e.company IS NOT NULL AND e.company != ''`;
     const empParams = [];
     if (filters.dept)       { empSql += ' AND e.dept=?'; empParams.push(filters.dept); }
     if (filters.team)       { empSql += ' AND e.team=?'; empParams.push(filters.team); }
@@ -730,8 +749,8 @@ const Q = {
     const idleThreshold = parseInt(Q.getSetting('idle_threshold_min') || '15');
     const idleCutoff = new Date(Date.now() - idleThreshold * 60000).toISOString();
 
-    const total   = db.prepare('SELECT COUNT(*) as c FROM employees WHERE active=1').get().c;
-    const onLeave = db.prepare(`SELECT COUNT(DISTINCT employee_id) as c FROM leave_requests WHERE status='approved' AND from_date<=? AND to_date>=?`).get(today, today).c;
+    const total   = db.prepare("SELECT COUNT(*) as c FROM employees WHERE active=1 AND company IS NOT NULL AND company!=''").get().c;
+    const onLeave = db.prepare(`SELECT COUNT(DISTINCT lr.employee_id) as c FROM leave_requests lr JOIN employees e ON lr.employee_id=e.id WHERE lr.status='approved' AND lr.from_date<=? AND lr.to_date>=? AND e.company IS NOT NULL AND e.company!=''`).get(today, today).c;
 
     // Sign-in based counts
     const activeNow = db.prepare(`SELECT COUNT(DISTINCT employee_id) as c FROM activity_log WHERE event_type='SignIn' AND event_time>=? AND date(event_time)=?`).get(idleCutoff, today).c;

@@ -107,12 +107,8 @@ async function getMsftUserInfo(accessToken) {
 const MIME = { '.html':'text/html','.css':'text/css','.js':'application/javascript','.json':'application/json','.ico':'image/x-icon','.png':'image/png' };
 
 // Gender name sets — built once at startup, used by /api/hr-insights
-const GENDER_FEMALE = new Set(['ghaida', 'houwayda', 'kana', 'mariko', 'mayssa', 'ons','molka', 'nanya', 'pam_shiseido', 'rahma', 'raoudha', 'salwa', 'sarra', 'semah', 'shalaka', 'sondos', 'taeko', 'yassmine', 'yuuna','amira','amina', 'amani','amel','asma','beya','chahira','dhouha','emna','fatima','fatma','ghada','hajer','hana','houda','ikram','imen','ines','jihen','khaoula','latifa','leila','lina','mabrouka','maissa','mariem','meriem','mouna','nadia','najla','narjes','nesrine','nour','doniez','dorsaf','eya','nouha','olfa','rania','rim','rima','safa','sahar','salma','sana','sara','sarah','sirine','sonia','wafa','wiem','yasmine','yousra','zahra','zaineb','zina','zohra','hind','nora','noura','maha','dina','randa','rana','jihan','heba','dalia','maya','mira','luna','layla','laila','nada','mona','hala','rita','roula','samira','siham','soumaya','souad','rajaa','kaoutar','imane','ilham','hanane','hasna','ghizlane','fadwa','chaima','assia','asmaa','aisha','aicha','aida','zara','zineb','widad','oumaima','nabila','mounya','loubna','lilia','khadija','jihane','jamila','hiba','fatna','farida','fatiha','dounia','dalila','chama','bouchra','asmae','priya','maria','sarah','emma','julia','lina','diana','nina','elena','anna','lisa','sophie','claire','alice','julie','marie','camille','lea','chloe','lucie','manon','elena','irina','olga','natasha','svetlana','jennifer','jessica','ashley','amanda','megan','lauren','kelly','rachel','samantha','nicole',
-  // Japanese female names
-  'aiko','akane','akemi','aki','akiko','akira','amane','ami','asahi','asuka','ayaka','ayako','ayame','ayane','ayano','ayumi','azusa','chie','chieko','chika','chikako','chisato','chizu','eiko','emi','emiko','eri','erika','eriko','fujiko','fumi','fumie','fumiko','hana','hanako','haruka','haruki','harumi','haruno','haruto','hayami','hikari','hikaru','hina','hinako','hiroko','hisako','hitomi','honami','ichika','itsuki','izumi','junko','kaede','kanae','kanako','kanon','kaori','kaoru','kasumi','kazue','kazuko','keiko','kiko','kimiko','kirara','kiriko','kiyomi','koharu','kotomi','kotone','kumiko','kumi','kuniko','kurumi','kyoko','machiko','madoka','mai','maiko','maiko','makiko','mami','mamiko','manami','mao','masako','matsuri','mayuko','megumi','miharu','mihoko','mika','mikako','mikoto','miku','minako','minori','mirei','misaki','misato','mitsuki','miwa','miyako','miyuki','mizuki','moe','moeko','momoka','momoko','nana','nanami','naoko','naomi','natsuki','natsuko','natsumi','nobuko','nodoka','noriko','reika','reiko','reina','rena','rina','rio','rion','risa','sachiko','saki','sakura','satsuki','sayaka','sayuri','setsuko','shiho','shika','shizuka','sumire','suzume','tamako','tamami','teruko','tomoe','tomoko','tomomi','tsukiko','tsukimi','tsukasa','umi','wakana','waka','yoko','yoriko','yoshiko','yukako','yukari','yuki','yukiko','yuko','yumi','yumiko','yuna','yuri','yurika','yurina','yuriko','yuuko']);
-const GENDER_MALE   = new Set(['fernando-guest','adem', 'alex', 'amrikar', 'bilel', 'david', 'duchaufour', 'elyes', 'feres', 'fernando', 'firas', 'gaith', 'ghazi', 'hachem', 'hamdy', 'hassen', 'haykel', 'hedi', 'hesham', 'hichem', 'hiroyuki', 'houssem', 'imed', 'islem', 'iyed', 'jalel', 'james', 'jaouher', 'jawaad', 'kal', 'kang', 'karam', 'kerem', 'kido', 'kishore', 'kishore.thomas', 'laroussi', 'layth', 'louay', 'luis', 'mabrouki', 'marouen', 'marwen', 'matthew', 'med', 'medamine', 'moetez', 'mohamedali', 'mones', 'morita', 'mouhamed', 'nadhir', 'nadim', 'nicholas', 'nidhal', 'noorallah', 'radhouan', 'rajshekhar', 'rayen', 'razi', 'rchid', 'saber', 'salim', 'sami', 'seifallah', 'seifeddine', 'skander', 'slim', 'sofiene', 'sousuke', 'syed', 'tarek', 'tetsumin', 'tetsuya', 'tom', 'toshiharu', 'wael', 'wahib', 'walid', 'wassim', 'woodson', 'xavier', 'yanseiji', 'yassine', 'yessin', 'youssef', 'zied','abdelhak','abdelaziz','abdelkader','abdelmalek','abderrahim','abderrahmane','abdessalam','adil','adnane','adnan','ahmed','ali','amine','anter', 'amenallah', 'amir','anis','aymen','aziz','achraf','achref','belhassen','bilal','brahim','chakib','driss','daly','dhia','farid','hamid','hamza','hani','hassan','hatim','hicham','houssam','iliyas','ilyes','iskander','ismail','issa','jawad','kamal','kamel','karim','khaled','khalid','latif','mahdi','marouane','mehdi','mohamed','mohammed','mouad','mourad','moussa','mustapha','nabil','nassim','nizar','omar','oussama','rachid','rafik","rami","redouane","riadh","saad","samir","sami","slim","sofiene","soufiane","tarek","tarak","tariq","tawfiq","walid","wassim","yacine","yasser","yassine","youssef","zakaria","zied","anas","bilel","fares","ghassen","hatem","helmi","hichem","jaber","jamel","jawher","kaies","khalil","larbi","maher","malek","mansour","marwen","mohsen","mondher","mongi","mounir","nader","nadhir","oualid","ramzi","ridha","salah","salim","samy","sayed","selim","skander","souheil","taher","thameur","wajdi","wissem","yousri","zouhaier","alex","james","tom","david","luis","michael","john","robert","william","daniel","mark","paul","peter","thomas","andrew","george","kevin","brian","steven","edward","richard","charles","joseph","christopher","matthew","anthony","donald","kenneth","joshua","timothy","ryan","eric","jason","jeffrey','frank','gary','stephen','patrick','raymond','scott','jack','dennis','walter','henry','arthur','joe','juan','carlos','miguel','carlos','alejandro',
-  // Japanese male names
-  'akihiko','akihiro','akio','akira','akito','atsushi','daichi','daiki','daisuke','fumihiro','fumio','genki','goro','hideo','hiroki','hiroshi','hiroto','hiroya','hisashi','hisato','isamu','isao','jiro','junichi','junpei','junsuke','katsuhiko','katsuhiro','katsuya','kazuki','kazuma','kazuya','keigo','keiji','keiki','keisuke','kenji','kenta','kentaro','kenzo','koji','kotaro','koya','kuniaki','kunio','makoto','masahiro','masaki','masanobu','masaru','masashi','masato','masayuki','minoru','naoki','naoto','naoya','noboru','nobuhiro','nobuo','nobuyuki','noriaki','norio','noriyuki','osamu','raito','reiji','reito','ren','riku','rinto','ryo','ryohei','ryoji','ryosuke','ryota','ryoto','ryuichi','ryuji','ryunosuke','satoru','satoshi','seiji','seiya','shingo','shinji','shinsuke','shintaro','shiro','shota','shuhei','shun','shunsuke','soichiro','sota','subaru','suguru','taichi','taiga','taiki','taishi','taito','takahiro','takashi','takato','takayuki','takehiro','takeshi','takuya','takuma','takuro','tomohiro','tomoki','tomoya','toshiaki','toshihiko','toshihiro','toshiki','toshio','toshiyuki','yasuhiro','yasuo','yasushi','yasuyuki','yoshihiko','yoshihiro','yoshiki','yoshio','yoshitaka','yoshito','yudai','yuichi','yuji','yukihiro','yukio','yukito','yusuke','yuto','yuya','yuuki','yuuma','hayato','haruki','rento','haruto','sosuke','hinata','kohei','issei']);
+const GENDER_FEMALE = new Set(['ghaida','houwayda','kana','mariko','mayssa','ons','molka','nanya','rahma','raoudha','salwa','sarra','semah','shalaka','sondos','taeko','yassmine','yuuna','amira','amina','amani','amel','asma','beya','chahira','dhouha','emna','fatima','fatma','ghada','hajer','hana','houda','ikram','imen','ines','jihen','khaoula','latifa','leila','lina','mabrouka','maissa','mariem','meriem','mouna','nadia','najla','narjes','nesrine','nour','doniez','dorsaf','eya','nouha','olfa','rania','rim','rima','safa','sahar','salma','sana','sara','sarah','sirine','sonia','wafa','wiem','yasmine','yousra','zahra','zaineb','zina','zohra','hind','nora','noura','maha','dina','randa','rana','jihan','heba','dalia','maya','mira','luna','layla','laila','nada','mona','hala','rita','roula','samira','siham','soumaya','souad','rajaa','kaoutar','imane','ilham','hanane','hasna','ghizlane','fadwa','chaima','assia','asmaa','aisha','aicha','aida','zara','zineb','widad','oumaima','nabila','mounya','loubna','lilia','khadija','jihane','jamila','hiba','fatna','farida','fatiha','dounia','dalila','chama','bouchra','asmae','priya','maria','emma','julia','diana','nina','elena','anna','lisa','sophie','claire','alice','julie','marie','camille','lea','chloe','lucie','manon','irina','olga','natasha','svetlana','jennifer','jessica','ashley','amanda','megan','lauren','kelly','rachel','samantha','nicole','aiko','akane','akemi','aki','akiko','amane','ami','asahi','asuka','ayaka','ayako','ayame','ayane','ayano','ayumi','azusa','chie','chieko','chika','chikako','chisato','chizu','eiko','emi','emiko','eri','erika','eriko','fujiko','fumi','fumie','fumiko','hanako','hayami','hikari','hikaru','hina','hinako','hiroko','hisako','hitomi','honami','ichika','itsuki','izumi','junko','kaede','kanae','kanako','kanon','kaori','kaoru','kasumi','kazue','kazuko','keiko','kiko','kimiko','kirara','kiriko','kiyomi','koharu','kotomi','kotone','kumiko','kumi','kuniko','kurumi','kyoko','machiko','madoka','mai','maiko','makiko','mami','mamiko','manami','mao','masako','matsuri','mayuko','megumi','miharu','mihoko','mika','mikako','mikoto','miku','minako','minori','mirei','misaki','misato','mitsuki','miwa','miyako','miyuki','mizuki','moe','moeko','momoka','momoko','nana','nanami','naoko','naomi','natsuki','natsuko','natsumi','nobuko','nodoka','noriko','reika','reiko','reina','rena','rina','rio','rion','risa','sachiko','saki','sakura','satsuki','sayaka','sayuri','setsuko','shiho','shika','shizuka','sumire','suzume','tamako','tamami','teruko','tomoe','tomoko','tomomi','tsukiko','tsukimi','tsukasa','umi','wakana','waka','yoko','yoriko','yoshiko','yukako','yukari','yuki','yukiko','yuko','yumi','yumiko','yuna','yuri','yurika','yurina','yuriko','yuuko']);
+const GENDER_MALE   = new Set(['adem','alex','amrikar','bilel','david','duchaufour','elyes','feres','fernando','firas','gaith','ghazi','hachem','hamdy','hassen','haykel','hedi','hesham','hichem','hiroyuki','houssem','imed','islem','iyed','jalel','james','jaouher','jawaad','kal','kang','karam','kerem','kido','kishore','laroussi','layth','louay','luis','mabrouki','marouen','marwen','matthew','med','medamine','moetez','mohamedali','mones','morita','mouhamed','nadhir','nadim','nicholas','nidhal','noorallah','radhouan','rajshekhar','rayen','razi','rchid','saber','salim','sami','seifallah','seifeddine','skander','slim','sofiene','sousuke','syed','tarek','tetsumin','tetsuya','tom','toshiharu','wael','wahib','walid','wassim','woodson','xavier','yanseiji','yassine','yessin','youssef','zied','abdelhak','abdelaziz','abdelkader','abdelmalek','abderrahim','abderrahmane','abdessalam','adil','adnane','adnan','ahmed','ali','amine','anter','amenallah','amir','anis','aymen','aziz','achraf','achref','belhassen','bilal','brahim','chakib','driss','daly','dhia','farid','hamid','hamza','hani','hassan','hatim','houssam','iliyas','ilyes','iskander','ismail','issa','jawad','kamal','kamel','karim','khaled','khalid','latif','mahdi','marouane','mehdi','mohamed','mohammed','mouad','mourad','moussa','mustapha','nabil','nassim','nizar','omar','oussama','rachid','rafik','rami','redouane','riadh','saad','samir','slim','soufiane','tarak','tariq','tawfiq','yacine','yasser','zakaria','anas','fares','ghassen','hatem','helmi','jaber','jamel','jawher','kaies','khalil','larbi','maher','malek','mansour','mohsen','mondher','mongi','mounir','nader','oualid','ramzi','ridha','salah','samy','sayed','selim','souheil','taher','thameur','wajdi','wissem','yousri','zouhaier','michael','john','robert','william','daniel','mark','paul','peter','thomas','andrew','george','kevin','brian','steven','edward','richard','charles','joseph','christopher','anthony','donald','kenneth','joshua','timothy','ryan','eric','jason','jeffrey','frank','gary','stephen','patrick','raymond','scott','jack','dennis','walter','henry','arthur','joe','juan','carlos','miguel','alejandro','akihiko','akihiro','akio','akira','akito','atsushi','daichi','daiki','daisuke','fumihiro','fumio','genki','goro','hideo','hiroki','hiroshi','hiroto','hiroya','hisashi','hisato','isamu','isao','jiro','junichi','junpei','junsuke','katsuhiko','katsuhiro','katsuya','kazuki','kazuma','kazuya','keigo','keiji','keiki','keisuke','kenji','kenta','kentaro','kenzo','koji','kotaro','koya','kuniaki','kunio','makoto','masahiro','masaki','masanobu','masaru','masashi','masato','masayuki','minoru','naoki','naoto','naoya','noboru','nobuhiro','nobuo','nobuyuki','noriaki','norio','noriyuki','osamu','raito','reiji','reito','ren','riku','rinto','ryo','ryohei','ryoji','ryosuke','ryota','ryoto','ryuichi','ryuji','ryunosuke','satoru','satoshi','seiji','seiya','shingo','shinji','shinsuke','shintaro','shiro','shota','shuhei','shun','shunsuke','soichiro','sota','subaru','suguru','taichi','taiga','taiki','taishi','taito','takahiro','takashi','takato','takayuki','takehiro','takeshi','takuya','takuma','takuro','tomohiro','tomoki','tomoya','toshiaki','toshihiko','toshihiro','toshiki','toshio','toshiyuki','yasuhiro','yasuo','yasushi','yasuyuki','yoshihiko','yoshihiro','yoshiki','yoshio','yoshitaka','yoshito','yudai','yuichi','yuji','yukihiro','yukio','yukito','yusuke','yuto','yuya','yuuki','yuuma','hayato','haruki','rento','haruto','sosuke','hinata','kohei','issei']);
 
 // ── Router ────────────────────────────────────────────────────────────────────
 const server = http.createServer(async (req, res) => {
@@ -506,7 +502,20 @@ const server = http.createServer(async (req, res) => {
     const byRole    = db.prepare(`SELECT role, COUNT(*) as c FROM employees WHERE ${BASE} GROUP BY role ORDER BY c DESC`).all();
     const byDept    = db.prepare(`SELECT dept, COUNT(*) as c FROM employees WHERE ${BASE} AND dept IS NOT NULL AND dept!='' GROUP BY dept ORDER BY c DESC`).all();
     const byTeam    = db.prepare(`SELECT team, COUNT(*) as c FROM employees WHERE ${BASE} AND team IS NOT NULL AND team!='' GROUP BY team ORDER BY c DESC`).all();
+
+    // Team split: Interns vs non-Interns per team (for stacked bar chart)
+    const byTeamSplit = db.prepare(`
+      SELECT
+        team,
+        SUM(CASE WHEN LOWER(title) LIKE '%intern%' THEN 1 ELSE 0 END) as interns,
+        SUM(CASE WHEN LOWER(title) NOT LIKE '%intern%' OR title IS NULL THEN 1 ELSE 0 END) as employees
+      FROM employees
+      WHERE ${BASE} AND team IS NOT NULL AND team != ''
+      GROUP BY team
+      ORDER BY (interns + employees) DESC
+    `).all();
     const byCompany = db.prepare(`SELECT company, COUNT(*) as c FROM employees WHERE ${BASE} GROUP BY company ORDER BY c DESC`).all();
+    const internCount = db.prepare(`SELECT COUNT(*) as c FROM employees WHERE ${BASE} AND LOWER(title) LIKE '%intern%'`).get().c;
 
     // Manager span of control (company-assigned only)
     const spans    = db.prepare(`SELECT manager_id, COUNT(*) as c FROM employees WHERE ${BASE} AND manager_id IS NOT NULL GROUP BY manager_id`).all();
@@ -611,7 +620,7 @@ const server = http.createServer(async (req, res) => {
     const topLeaveDesc = leaveByDept[0] || null;
 
     return json(res, 200, {
-      headcount: { total, excluded, byRole, byDept, byTeam, byCompany, monthlyTrend },
+      headcount: { total, excluded, internCount, byRole, byDept, byTeam, byTeamSplit, byCompany, monthlyTrend },
       management: { managers: byRole.find(r=>r.role==='manager')?.c||0, avgSpan, maxSpan, unmanaged },
       coverage: { noCal, noCompany },
       leave: { byType: leaveByType, byDept: leaveByDept, onLeaveToday, pendingLeave, totalReqs, rejectedRate, avgUsed, leaveTrend, balUtil, topLeaveDesc },
@@ -620,6 +629,62 @@ const server = http.createServer(async (req, res) => {
     });
   }
 
+
+  // ── IP info — office recognition + external reputation with cache ────────────
+  if (/^\/api\/ip-info\//.test(pathname)) {
+    const ipAddr = pathname.split('/')[3];
+    if (!ipAddr) return json(res, 400, { error: 'No IP' });
+
+    let officeIps = [];
+    try { officeIps = JSON.parse(Q.getSetting('office_ips') || '[]'); } catch {}
+
+    for (const office of officeIps) {
+      if ((office.ips || []).includes(ipAddr))
+        return json(res, 200, { type:'office', label:office.label, ip:ipAddr });
+    }
+
+    if (!global._ipCache) global._ipCache = new Map();
+    if (global._ipCache.has(ipAddr)) return json(res, 200, global._ipCache.get(ipAddr));
+
+    const isPrivate = /^(10\.|172\.(1[6-9]|2\d|3[01])\.|192\.168\.|127\.|::1)/.test(ipAddr);
+    if (isPrivate) {
+      const r = { type:'private', label:'Private / Internal', ip:ipAddr };
+      global._ipCache.set(ipAddr, r);
+      return json(res, 200, r);
+    }
+
+    try {
+      const result = await new Promise((resolve, reject) => {
+        const r = https.request({
+          hostname:'ip-api.com',
+          path:`/json/${ipAddr}?fields=status,country,countryCode,city,isp,org,proxy,hosting,query`,
+          method:'GET', headers:{'User-Agent':'WorkIQ/1.0'}
+        }, res => {
+          let b=''; res.on('data',d=>b+=d);
+          res.on('end',()=>{ try{resolve(JSON.parse(b));}catch{reject(new Error('parse'));} });
+        });
+        r.on('error',reject);
+        r.setTimeout(5000,()=>{ r.destroy(); reject(new Error('timeout')); });
+        r.end();
+      });
+      let risk='low', riskColor='#22c55e';
+      if (result.proxy || result.hosting) { risk='medium'; riskColor='#f59e0b'; }
+      if (result.proxy && result.hosting) { risk='high';   riskColor='#ef4444'; }
+      const info = {
+        type:'external', ip:ipAddr,
+        country:result.country||'—', countryCode:result.countryCode||'',
+        city:result.city||'—', isp:result.isp||'—',
+        proxy:result.proxy||false, hosting:result.hosting||false,
+        risk, riskColor,
+        label:`${result.city||''}, ${result.country||'Unknown'}`.replace(/^, /,'')
+      };
+      global._ipCache.set(ipAddr, info);
+      if (global._ipCache.size > 2000) global._ipCache.delete(global._ipCache.keys().next().value);
+      return json(res, 200, info);
+    } catch(e) {
+      return json(res, 200, { type:'unknown', ip:ipAddr, label:'Lookup failed', risk:'unknown' });
+    }
+  }
 
   if (pathname === '/api/activity') {
     const emp = requireAuth(req, res); if (!emp) return;

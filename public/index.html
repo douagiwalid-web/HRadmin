@@ -1291,14 +1291,23 @@ async function vHRDash(el) {
     </div>
   </div>
 
-  <!-- Row 1: Dept + Company + Gender -->
-  <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:16px;margin-bottom:16px">
+  <!-- Row 1: Dept chart — full width with scroll -->
+  <div style="margin-bottom:16px">
     <div class="card"><div class="card-title">Headcount by department</div>
-      <div style="position:relative;height:200px"><canvas id="hr-c1"></canvas></div></div>
+      <div style="overflow-y:auto;max-height:380px;padding-right:4px">
+        <div style="position:relative;height:${Math.max(240, d.headcount.byDept.length * 26)}px">
+          <canvas id="hr-c1"></canvas>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Row 1b: Company doughnut + Gender doughnut -->
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:16px">
     <div class="card"><div class="card-title">Headcount by company</div>
-      <div style="position:relative;height:200px"><canvas id="hr-c2"></canvas></div></div>
+      <div style="position:relative;height:220px"><canvas id="hr-c2"></canvas></div></div>
     <div class="card"><div class="card-title">Gender estimate <span style="font-size:10px;font-weight:400;color:var(--txt3)">(first-name based)</span></div>
-      <div style="position:relative;height:130px"><canvas id="hr-c3"></canvas></div>
+      <div style="position:relative;height:160px"><canvas id="hr-c3"></canvas></div>
       <div style="display:flex;gap:16px;margin-top:10px;font-size:12px;justify-content:center">
         <span style="color:#3b82f6">♂ Male <strong>${d.gender.male}</strong> (${d.headcount.total?Math.round(d.gender.male/d.headcount.total*100):0}%)</span>
         <span style="color:#ec4899">♀ Female <strong>${d.gender.female}</strong> (${d.headcount.total?Math.round(d.gender.female/d.headcount.total*100):0}%)</span>
@@ -1307,20 +1316,30 @@ async function vHRDash(el) {
     </div>
   </div>
 
-  <!-- Row 2: Team + Leave by type -->
-  <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:16px">
-    <div class="card"><div class="card-title">Headcount by team <span style="font-size:10px;font-weight:400;color:var(--txt3)">· Employees vs Interns</span></div>
-      <div style="position:relative;height:200px"><canvas id="hr-c4"></canvas></div></div>
-    <div class="card"><div class="card-title">Leave days approved by type</div>
-      <div style="position:relative;height:200px"><canvas id="hr-c5"></canvas></div></div>
+  <!-- Row 2: Team chart — full width with scrollable container -->
+  <div style="margin-bottom:16px">
+    <div class="card">
+      <div class="card-title">Headcount by team <span style="font-size:10px;font-weight:400;color:var(--txt3)">· Employees vs Interns</span></div>
+      <div style="overflow-y:auto;max-height:420px;padding-right:4px">
+        <div style="position:relative;height:${Math.max(280, d.headcount.byTeamSplit.length * 28)}px">
+          <canvas id="hr-c4"></canvas>
+        </div>
+      </div>
+    </div>
   </div>
 
-  <!-- Row 3: Monthly leave trend + Leave by dept -->
-  <div style="display:grid;grid-template-columns:2fr 1fr;gap:16px;margin-bottom:16px">
+  <!-- Row 2b: Leave by type + Leave by dept side by side -->
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:16px">
+    <div class="card"><div class="card-title">Leave days approved by type</div>
+      <div style="position:relative;height:220px"><canvas id="hr-c5"></canvas></div></div>
+    <div class="card"><div class="card-title">Leave days by department</div>
+      <div style="position:relative;height:220px"><canvas id="hr-c7"></canvas></div></div>
+  </div>
+
+  <!-- Row 3: Monthly leave trend — full width -->
+  <div style="margin-bottom:16px">
     <div class="card"><div class="card-title">Leave request trend (monthly)</div>
       <div style="position:relative;height:180px"><canvas id="hr-c6"></canvas></div></div>
-    <div class="card"><div class="card-title">Leave days by department</div>
-      <div style="position:relative;height:180px"><canvas id="hr-c7"></canvas></div></div>
   </div>
 
   <!-- Row 4: Health alerts + Manager table -->
@@ -1348,13 +1367,20 @@ async function vHRDash(el) {
   const gridFaint   = { color:'rgba(0,0,0,0.04)' };
   const tickSmall   = { font:{size:10} };
 
-  // 1. Dept horizontal bar
+  // 1. Dept horizontal bar — dynamic height, show count on each bar
   mkChart('hr-c1',{ type:'bar', data:{
     labels: d.headcount.byDept.map(r=>r.dept),
-    datasets:[{ data:d.headcount.byDept.map(r=>r.c), backgroundColor:COLORS, borderRadius:3 }]
-  }, options:{ indexAxis:'y', responsive:true, maintainAspectRatio:false,
-    plugins:{ legend:{ display:false } },
-    scales:{ x:{ beginAtZero:true, grid:gridFaint, ticks:tickSmall }, y:{ grid:{display:false}, ticks:tickSmall } }
+    datasets:[{ data:d.headcount.byDept.map(r=>r.c), backgroundColor:COLORS, borderRadius:3,
+      datalabels:{ display:false } }]
+  }, options:{
+    indexAxis:'y', responsive:true, maintainAspectRatio:false,
+    plugins:{ legend:{ display:false },
+      tooltip:{ callbacks:{ label: ctx => ` ${ctx.label}: ${ctx.raw}` } } },
+    scales:{
+      x:{ beginAtZero:true, grid:gridFaint, ticks:{ ...tickSmall, stepSize:1 } },
+      y:{ grid:{ display:false }, ticks:{ font:{ size: d.headcount.byDept.length > 15 ? 9 : 10 },
+          autoSkip:false } }
+    }
   }});
 
   // 2. Company doughnut
@@ -1374,15 +1400,13 @@ async function vHRDash(el) {
     plugins:{ legend:{ display:false } }
   }});
 
-  // 4. Team stacked bar — Employees vs Interns
+  // 4. Team stacked bar — Employees vs Interns, all labels visible
   const teamSplit = d.headcount.byTeamSplit || [];
   mkChart('hr-c4',{ type:'bar', data:{
     labels: teamSplit.map(r=>r.team),
     datasets:[
-      { label:'Employees', data:teamSplit.map(r=>r.employees),
-        backgroundColor:'#4285F4', borderRadius:0 },
-      { label:'Interns',   data:teamSplit.map(r=>r.interns),
-        backgroundColor:'#FBBC05', borderRadius:0 },
+      { label:'Employees', data:teamSplit.map(r=>r.employees), backgroundColor:'#4285F4', borderRadius:0 },
+      { label:'Interns',   data:teamSplit.map(r=>r.interns),   backgroundColor:'#FBBC05', borderRadius:0 },
     ]
   }, options:{
     indexAxis:'y', responsive:true, maintainAspectRatio:false,
@@ -1391,9 +1415,9 @@ async function vHRDash(el) {
       tooltip:{ callbacks:{ label: ctx => ` ${ctx.dataset.label}: ${ctx.raw}` } }
     },
     scales:{
-      x:{ stacked:true, beginAtZero:true, grid:gridFaint, ticks:tickSmall,
-          title:{ display:false } },
-      y:{ stacked:true, grid:{ display:false }, ticks:tickSmall }
+      x:{ stacked:true, beginAtZero:true, grid:gridFaint, ticks:{ ...tickSmall, stepSize:1 } },
+      y:{ stacked:true, grid:{ display:false },
+          ticks:{ font:{ size: teamSplit.length > 15 ? 9 : 10 }, autoSkip:false } }
     }
   }});
 
@@ -1418,14 +1442,19 @@ async function vHRDash(el) {
              x:{ grid:{ display:false }, ticks:tickSmall } }
   }});
 
-  // 7. Leave by dept bar
+  // 7. Leave by dept — horizontal bar (now full height in its own slot)
   mkChart('hr-c7',{ type:'bar', data:{
     labels: d.leave.byDept.map(r=>r.dept),
-    datasets:[{ data:d.leave.byDept.map(r=>r.total_days||0), backgroundColor:COLORS, borderRadius:3 }]
-  }, options:{ indexAxis:'y', responsive:true, maintainAspectRatio:false,
+    datasets:[{ data:d.leave.byDept.map(r=>r.total_days||0),
+      backgroundColor:COLORS, borderRadius:3 }]
+  }, options:{
+    indexAxis:'y', responsive:true, maintainAspectRatio:false,
     plugins:{ legend:{ display:false },
-      tooltip:{ callbacks:{ label: ctx => `${ctx.raw} days` } } },
-    scales:{ x:{ beginAtZero:true, grid:gridFaint, ticks:tickSmall }, y:{ grid:{display:false}, ticks:tickSmall } }
+      tooltip:{ callbacks:{ label: ctx => ` ${ctx.label}: ${ctx.raw} days` } } },
+    scales:{
+      x:{ beginAtZero:true, grid:gridFaint, ticks:tickSmall },
+      y:{ grid:{ display:false }, ticks:{ font:{ size:10 }, autoSkip:false } }
+    }
   }});
 
   // 8. Role doughnut
@@ -2634,33 +2663,50 @@ async function vReports(el) {
 // ─── Email / SMTP settings ────────────────────────────────────────────────────
 async function vEmailSettings(el) {
   const s = await GET('/email-settings');
+  const statusColor = s.entra_configured ? '#22c55e' : '#ef4444';
+  const statusText  = s.entra_configured ? '✓ Entra ID credentials configured' : '✗ Entra ID not configured — go to Entra ID config first';
   el.innerHTML = `
-  <div class="info-box">Configure SMTP to send email notifications for leave approvals, rejections, balance summaries, and reminders. Install <code>nodemailer</code> via npm to enable actual sending.</div>
+  <div class="info-box" style="border-left-color:#3b82f6">
+    Email is sent via <strong>Microsoft Graph API</strong> using your Azure service principal.
+    No SMTP server needed — requires <code>Mail.Send</code> application permission granted in Azure.
+  </div>
   <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px">
     <div class="card">
-      <div class="card-title">SMTP server</div>
+      <div class="card-title">Microsoft Graph mail settings</div>
       <div class="fg">
-        <div class="fg-group full" style="display:flex;gap:10px;align-items:center;margin-bottom:4px">
+        <div class="fg-group full" style="display:flex;gap:10px;align-items:center;margin-bottom:8px">
           ${mkToggle(s.email_enabled==='1','tog-email-on')}
           <label style="margin:0;font-size:13px;color:var(--txt)">Email notifications enabled</label>
         </div>
-        <div class="fg-group full"><label>SMTP host</label><input type="text" id="es-host" value="${s.smtp_host||''}" placeholder="smtp.office365.com or smtp.gmail.com"></div>
-        <div class="fg-group"><label>Port</label><input type="number" id="es-port" value="${s.smtp_port||'587'}"></div>
-        <div class="fg-group"><label>Encryption</label>
-          <select id="es-sec"><option value="0"${s.smtp_secure!=='1'?' selected':''}>STARTTLS (port 587)</option><option value="1"${s.smtp_secure==='1'?' selected':''}>SSL/TLS (port 465)</option></select></div>
-        <div class="fg-group"><label>Username / email</label><input type="email" id="es-user" value="${s.smtp_user||''}" placeholder="noreply@company.com"></div>
-        <div class="fg-group"><label>Password / app password</label><input type="password" id="es-pass" value="${s.smtp_pass||''}" placeholder="App password or SMTP password"></div>
-        <div class="fg-group"><label>From address</label><input type="email" id="es-from" value="${s.smtp_from||''}" placeholder="noreply@company.com"></div>
-        <div class="fg-group"><label>From name</label><input type="text" id="es-fname" value="${s.smtp_from_name||'WorkIQ HR'}" placeholder="WorkIQ HR"></div>
+        <div class="fg-group full">
+          <label>Azure service principal</label>
+          <div style="padding:8px 10px;background:var(--bg);border-radius:var(--r);font-size:12px;color:${statusColor};border:1px solid var(--bdr)">
+            ${statusText}
+            ${s.entra_configured ? `<div style="color:var(--txt3);margin-top:4px">Tenant: ${s.entra_tenant} · Client: ${s.entra_client}</div>` : ''}
+          </div>
+          ${!s.entra_configured ? `<div style="font-size:11px;color:var(--txt3);margin-top:4px">→ <a onclick="navigate('entra-config')" style="cursor:pointer;color:var(--az)">Configure Entra ID credentials</a> first</div>` : ''}
+        </div>
+        <div class="fg-group full">
+          <label>Send from mailbox (UPN)</label>
+          <input type="email" id="es-sender" value="${s.email_sender||''}" placeholder="hr@avaxia-group.com">
+          <div style="font-size:11px;color:var(--txt3);margin-top:3px">
+            The mailbox user that sends emails. Must exist in your tenant and have a valid Exchange license.
+            The service principal must have <code>Mail.Send</code> permission to send on behalf of this user.
+          </div>
+        </div>
+        <div class="fg-group full">
+          <label>Display name</label>
+          <input type="text" id="es-fname" value="${s.email_from_name||'WorkIQ HR'}" placeholder="WorkIQ HR">
+        </div>
       </div>
       <div style="display:flex;gap:8px;margin-top:14px">
-        <button class="btn btn-primary" onclick="saveEmailSettings()">Save SMTP settings</button>
+        <button class="btn btn-primary" onclick="saveEmailSettings()">Save settings</button>
         <button class="btn" onclick="testEmailSettings()">Send test email</button>
       </div>
     </div>
     <div class="card">
       <div class="card-title">Notification triggers</div>
-      <div style="font-size:12px;color:var(--txt2);margin-bottom:14px">Choose which events trigger an email notification.</div>
+      <div style="font-size:12px;color:var(--txt2);margin-bottom:14px">Choose which events send an email notification.</div>
       ${[
         ['email_on_submit',   'Employee submits leave request',     '1'],
         ['email_on_approve',  'Leave request approved (any level)', '1'],
@@ -2679,15 +2725,41 @@ async function vEmailSettings(el) {
     <div class="card-title">Email template preview</div>
     <div style="background:var(--bg);border-radius:var(--r);padding:16px;font-size:12px;color:var(--txt2);line-height:1.8">
       <strong style="color:var(--txt)">Subject:</strong> Leave request LR-001 approved ✓<br>
-      <strong style="color:var(--txt)">To:</strong> alex@company.com<br><br>
+      <strong style="color:var(--txt)">From:</strong> ${s.email_from_name||'WorkIQ HR'} &lt;${s.email_sender||'hr@company.com'}&gt;<br>
+      <strong style="color:var(--txt)">To:</strong> employee@company.com<br><br>
       Hi Alex,<br><br>
-      Your leave request <strong>LR-001</strong> (Annual Leave, 3 days: 2026-06-01 → 2026-06-03) has been <strong style="color:var(--grn)">approved</strong> by all approvers.<br><br>
+      Your leave request <strong>LR-001</strong> (Annual Leave, 3 days: 2026-06-01 → 2026-06-03) has been <strong style="color:#22c55e">approved</strong>.<br><br>
       <em>— WorkIQ HR Platform</em>
     </div>
     <div style="margin-top:10px;font-size:11px;color:var(--txt3)">
-      To enable real email sending: <code>npm install nodemailer</code> in your workiq2 folder, then restart the server.
+      Emails are delivered via <strong>Microsoft Graph API</strong> — 
+      <code>POST /users/{sender}/sendMail</code> — using your service principal credentials. No SMTP configuration required.
     </div>
   </div>`;
+}
+
+async function saveEmailSettings() {
+  const data = {
+    email_enabled:    document.getElementById('tog-email-on')?.classList.contains('on') ? '1' : '0',
+    email_sender:     v('es-sender'),
+    email_from_name:  v('es-fname'),
+    email_on_submit:  document.getElementById('tog-email_on_submit')?.classList.contains('on')   ? '1':'0',
+    email_on_approve: document.getElementById('tog-email_on_approve')?.classList.contains('on')  ? '1':'0',
+    email_on_reject:  document.getElementById('tog-email_on_reject')?.classList.contains('on')   ? '1':'0',
+    email_on_pending: document.getElementById('tog-email_on_pending')?.classList.contains('on')  ? '1':'0',
+    email_reminder:   document.getElementById('tog-email_reminder')?.classList.contains('on')    ? '1':'0',
+    email_monthly_bal:document.getElementById('tog-email_monthly_bal')?.classList.contains('on') ? '1':'0',
+    email_on_sync:    document.getElementById('tog-email_on_sync')?.classList.contains('on')     ? '1':'0',
+  };
+  try { await POST('/email-settings', data); toast('Email settings saved'); }
+  catch(e) { toast(e.message, 'error'); }
+}
+
+async function testEmailSettings() {
+  try {
+    const r = await POST('/email-settings/test', {});
+    toast(r.message || 'Test email sent ✓');
+  } catch(e) { toast(e.message, 'error'); }
 }
 
 async function saveEmailSettings() {

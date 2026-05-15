@@ -104,6 +104,192 @@ async function getMsftUserInfo(accessToken) {
   });
 }
 
+// ── Leave email notifications ─────────────────────────────────────────────────
+async function sendLeaveEmail(triggerKey, leaveReq, extraInfo = {}) {
+  try {
+    const s   = Q.getSettings();
+    if (s.email_enabled !== '1' || s[triggerKey] !== '1') return; // disabled
+    const cfg    = Q.getEntraConfig();
+    const sender = s.email_sender;
+    if (!cfg.tenant_id || !cfg.client_id || !cfg.client_secret || !sender) return;
+    const fromName = s.email_from_name || 'WorkIQ HR';
+
+    const { empEmail, empName, managerEmail, managerName, reqId, typeName, fromDate, toDate, days, status, comment } = extraInfo;
+
+    const baseStyle = `font-family:Arial,sans-serif;max-width:520px;margin:0 auto`;
+    const pill = (text, color) => `<span style="display:inline-block;padding:2px 10px;border-radius:12px;background:${color}22;color:${color};font-size:12px;font-weight:600">${text}</span>`;
+
+    const leaveCard = `
+      <div style="background:#f8f9fa;border-radius:8px;padding:16px;margin:14px 0;border-left:4px solid #3b82f6">
+        <div style="font-size:13px;color:#555">Request ID: <strong>${reqId}</strong></div>
+        <div style="font-size:13px;color:#555">Type: <strong>${typeName}</strong></div>
+        <div style="font-size:13px;color:#555">Period: <strong>${fromDate} → ${toDate}</strong> (${days} day${days>1?'s':''})</div>
+      </div>`;
+
+    let subject, body, recipients = [];
+
+    if (triggerKey === 'email_on_submit') {
+      // → Employee gets confirmation; manager gets pending notification
+      subject = `Leave request ${reqId} submitted — awaiting approval`;
+      const empBody = `<div style="${baseStyle}">
+        <h2 style="color:#1e293b">Leave request submitted ✓</h2>
+        <p>Hi ${empName},</p>
+        <p>Your leave request has been submitted and is pending manager approval.</p>
+        ${leaveCard}
+        <p style="color:#64748b;font-size:12px">You will be notified at each approval step.<br>— ${fromName}</p>
+      </div>`;
+      const mgrBody = `<div style="${baseStyle}">
+        <h2 style="color:#1e293b">Action required: Leave approval</h2>
+        <p>Hi ${managerName||'Manager'},</p>
+        <p><strong>${empName}</strong> has submitted a leave request that requires your approval.</p>
+        ${leaveCard}
+        <p>Please log in to <strong>WorkIQ</strong> to approve or reject this request.</p>
+        <p style="color:#64748b;font-size:12px">— ${fromName}</p>
+      </div>`;
+      if (empEmail)     await sendGraphMail(cfg, sender, empEmail,     subject, empBody).catch(()=>{});
+      if (managerEmail) await sendGraphMail(cfg, sender, managerEmail, `Action required: ${empName} leave approval`, mgrBody).catch(()=>{});
+      return;
+    }
+
+    if (triggerKey === 'email_on_approve') {
+      const isFinal = status === 'approved';
+      subject = isFinal ? `Leave request ${reqId} fully approved ✓` : `Leave request ${reqId} — next approval pending`;
+      body = `<div style="${baseStyle}">
+        <h2 style="color:#22c55e">Leave request ${isFinal ? 'approved ✓' : 'progressing...'}</h2>
+        <p>Hi ${empName},</p>
+        <p>Your leave request has been <strong>${isFinal ? 'fully approved' : 'approved at one level and is awaiting the next approver'}</strong>.</p>
+        ${leaveCard}
+        ${comment ? `<p>Comment: <em>${comment}</em></p>` : ''}
+        <p style="color:#64748b;font-size:12px">— ${fromName}</p>
+      </div>`;
+      recipients = [empEmail];
+    }
+
+    if (triggerKey === 'email_on_reject') {
+      subject = `Leave request ${reqId} rejected`;
+      body = `<div style="${baseStyle}">
+        <h2 style="color:#ef4444">Leave request rejected</h2>
+        <p>Hi ${empName},</p>
+        <p>Your leave request has been <strong>rejected</strong>.</p>
+        ${leaveCard}
+        ${comment ? `<p>Reason: <em>${comment}</em></p>` : ''}
+        <p>Please contact HR if you have questions.</p>
+        <p style="color:#64748b;font-size:12px">— ${fromName}</p>
+      </div>`;
+      recipients = [empEmail];
+    }
+
+    for (const to of recipients.filter(Boolean)) {
+      await sendGraphMail(cfg, sender, to, subject, body).catch(() => {});
+    }
+  } catch (e) {
+    console.error('[WorkIQ] Email notification error:', e.message);
+  }
+}
+
+// Helper: build email context from a leave request ID
+function getLeaveEmailContext(reqId) {
+  const req = db.prepare(`
+    SELECT lr.*, e.name as emp_name, e.email as emp_email,
+           e.manager_id, lt.name as type_name
+    FROM leave_requests lr
+    JOIN employees e ON lr.employee_id=e.id
+    JOIN leave_types lt ON lr.leave_type_id=lt.id
+    WHERE lr.id=?`).get(reqId);
+  if (!req) return null;
+  let managerEmail = null, managerName = null;
+  if (req.manager_id) {
+    const mgr = db.prepare('SELECT name, email FROM employees WHERE id=?').get(req.manager_id);
+    managerEmail = mgr?.email;
+    managerName  = mgr?.name;
+  } else {
+    // Fallback: find manager by dept
+    const mgr = db.prepare("SELECT name, email FROM employees WHERE dept=(SELECT dept FROM employees WHERE id=?) AND role='manager' AND active=1 LIMIT 1").get(req.employee_id);
+    managerEmail = mgr?.email;
+    managerName  = mgr?.name;
+  }
+  return {
+    reqId: req.id, empEmail: req.emp_email, empName: req.emp_name,
+    managerEmail, managerName,
+    typeName: req.type_name, fromDate: req.from_date, toDate: req.to_date,
+    days: req.days, status: req.status,
+  };
+}
+async function getClientCredToken(cfg) {
+  const body = new URLSearchParams({
+    grant_type: 'client_credentials',
+    client_id: cfg.client_id,
+    client_secret: cfg.client_secret,
+    scope: 'https://graph.microsoft.com/.default',
+  }).toString();
+  return new Promise((resolve, reject) => {
+    const opts = {
+      hostname: 'login.microsoftonline.com',
+      path: `/${cfg.tenant_id}/oauth2/v2.0/token`,
+      method: 'POST',
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded', 'Content-Length': Buffer.byteLength(body) },
+    };
+    let resp = '';
+    const r = https.request(opts, res => { res.on('data', d => resp += d); res.on('end', () => { try { resolve(JSON.parse(resp)); } catch { reject(new Error('Token parse error')); } }); });
+    r.on('error', reject);
+    r.setTimeout(15000, () => { r.destroy(); reject(new Error('Token request timeout')); });
+    r.write(body); r.end();
+  });
+}
+
+async function sendGraphMail(cfg, senderUpn, toEmail, subject, htmlBody) {
+  if (!cfg?.tenant_id || !cfg?.client_id || !cfg?.client_secret)
+    throw new Error('Entra ID credentials not configured');
+  if (!senderUpn) throw new Error('Sender UPN not configured (set in Email settings)');
+
+  const tokenResp = await getClientCredToken(cfg);
+  if (!tokenResp.access_token)
+    throw new Error(tokenResp.error_description || tokenResp.error || 'Failed to get access token');
+
+  const s    = Q.getSettings();
+  const fromName = s.email_from_name || 'WorkIQ HR';
+  const payload  = JSON.stringify({
+    message: {
+      subject,
+      body: { contentType: 'HTML', content: htmlBody },
+      toRecipients: [{ emailAddress: { address: toEmail } }],
+      from: { emailAddress: { address: senderUpn, name: fromName } },
+    },
+    saveToSentItems: false,
+  });
+
+  return new Promise((resolve, reject) => {
+    const opts = {
+      hostname: 'graph.microsoft.com',
+      path: `/v1.0/users/${encodeURIComponent(senderUpn)}/sendMail`,
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${tokenResp.access_token}`,
+        'Content-Type': 'application/json',
+        'Content-Length': Buffer.byteLength(payload),
+      },
+    };
+    let resp = '';
+    const r = https.request(opts, res => {
+      res.on('data', d => resp += d);
+      res.on('end', () => {
+        // 202 Accepted = success, no body
+        if (res.statusCode === 202) return resolve({ ok: true });
+        try {
+          const data = JSON.parse(resp);
+          reject(new Error(data?.error?.message || `Graph sendMail HTTP ${res.statusCode}`));
+        } catch {
+          reject(new Error(`Graph sendMail HTTP ${res.statusCode}`));
+        }
+      });
+    });
+    r.on('error', reject);
+    r.setTimeout(20000, () => { r.destroy(); reject(new Error('sendMail timeout')); });
+    r.write(payload);
+    r.end();
+  });
+}
+
 const MIME = { '.html':'text/html','.css':'text/css','.js':'application/javascript','.json':'application/json','.ico':'image/x-icon','.png':'image/png' };
 
 // Gender name sets — built once at startup, used by /api/hr-insights
@@ -228,48 +414,76 @@ const server = http.createServer(async (req, res) => {
     }
   }
 
-  // ── Email settings (stored as regular settings keys) ─────────────────────────
+  // ── Email settings (Microsoft Graph / Azure service principal) ───────────────
   if (pathname === '/api/email-settings') {
     const emp = requireAuth(req, res); if (!emp) return;
     if (!requireRole(emp, res, 'hr')) return;
     if (method === 'GET') {
       const all = Q.getSettings();
+      const cfg  = Q.getEntraConfig();
       return json(res, 200, {
-        smtp_host:     all.smtp_host     || '',
-        smtp_port:     all.smtp_port     || '587',
-        smtp_secure:   all.smtp_secure   || '0',
-        smtp_user:     all.smtp_user     || '',
-        smtp_pass:     all.smtp_pass     ? '••••••••' : '',
-        smtp_from:     all.smtp_from     || '',
-        smtp_from_name: all.smtp_from_name || 'WorkIQ HR',
-        email_enabled: all.email_enabled || '0',
+        // Graph-based email settings
+        email_enabled:    all.email_enabled    || '0',
+        email_sender:     all.email_sender     || '',   // UPN of the mailbox to send from
+        email_from_name:  all.email_from_name  || 'WorkIQ HR',
+        // Show which Entra creds will be used (read-only reference)
+        entra_tenant:     cfg.tenant_id  ? cfg.tenant_id.slice(0,8)+'...' : '',
+        entra_client:     cfg.client_id  ? cfg.client_id.slice(0,8)+'...' : '',
+        entra_configured: !!(cfg.tenant_id && cfg.client_id && cfg.client_secret),
+        // Trigger toggles
+        email_on_submit:   all.email_on_submit   || '1',
+        email_on_approve:  all.email_on_approve  || '1',
+        email_on_reject:   all.email_on_reject   || '1',
+        email_on_pending:  all.email_on_pending  || '1',
+        email_reminder:    all.email_reminder    || '1',
+        email_monthly_bal: all.email_monthly_bal || '1',
+        email_on_sync:     all.email_on_sync     || '0',
       });
     }
     if (method === 'POST') {
       const body = await readBody(req);
-      const toSave = { ...body };
-      // Don't overwrite password if masked
-      if (toSave.smtp_pass === '••••••••') delete toSave.smtp_pass;
-      Q.setSettings(toSave, emp.name);
+      Q.setSettings(body, emp.name);
       return json(res, 200, { ok: true });
     }
   }
 
-  // ── Test email ────────────────────────────────────────────────────────────────
+  // ── Test email via Microsoft Graph ────────────────────────────────────────────
   if (pathname === '/api/email-settings/test' && method === 'POST') {
     const emp = requireAuth(req, res); if (!emp) return;
     if (!requireRole(emp, res, 'hr')) return;
-    const s = Q.getSettings();
-    if (!s.smtp_host) return json(res, 400, { error: 'SMTP not configured' });
-    // We don't have nodemailer (no npm), so return config validation result
-    const missing = [];
-    if (!s.smtp_host) missing.push('SMTP host');
-    if (!s.smtp_user) missing.push('SMTP username');
-    if (!s.smtp_pass) missing.push('SMTP password');
-    if (!s.smtp_from) missing.push('From address');
-    if (missing.length) return json(res, 400, { error: `Missing: ${missing.join(', ')}` });
-    db.prepare('INSERT INTO audit_log (actor_name,action,target,detail) VALUES (?,?,?,?)').run(emp.name, 'Email test triggered', s.smtp_host, `to ${emp.email}`);
-    return json(res, 200, { ok: true, message: `Config validated. To send real emails, install nodemailer: npm install nodemailer` });
+    const s   = Q.getSettings();
+    const cfg = Q.getEntraConfig();
+    if (!cfg.tenant_id || !cfg.client_id || !cfg.client_secret)
+      return json(res, 400, { error: 'Entra ID credentials not configured — go to Entra ID config first' });
+    const sender = s.email_sender || emp.email;
+    if (!sender)
+      return json(res, 400, { error: 'No sender email address. Set "Send from" mailbox in Email settings.' });
+    try {
+      const result = await sendGraphMail(cfg, sender, emp.email, `WorkIQ Email Test — ${new Date().toLocaleString()}`,
+        `<p>This is a test email from <strong>WorkIQ HR Platform</strong>.</p>
+         <p>Sent via Microsoft Graph API using your Azure service principal.</p>
+         <p style="color:#888;font-size:12px">Sent at ${new Date().toISOString()}</p>`);
+      db.prepare('INSERT INTO audit_log (actor_name,action,target,detail) VALUES (?,?,?,?)').run(emp.name, 'Email test sent', sender, `to ${emp.email}`);
+      return json(res, 200, { ok: true, message: `Test email sent to ${emp.email} via Microsoft Graph` });
+    } catch(e) {
+      return json(res, 400, { error: `Graph sendMail failed: ${e.message}` });
+    }
+  }
+
+  // ── Send email endpoint (internal use) ────────────────────────────────────────
+  if (pathname === '/api/send-email' && method === 'POST') {
+    const emp = requireAuth(req, res); if (!emp) return;
+    if (!requireRole(emp, res, 'hr', 'director')) return;
+    const body = await readBody(req);
+    const cfg  = Q.getEntraConfig();
+    const s    = Q.getSettings();
+    if (s.email_enabled !== '1') return json(res, 400, { error: 'Email notifications are disabled' });
+    const sender = s.email_sender || '';
+    if (!sender) return json(res, 400, { error: 'Sender email not configured' });
+    try {
+      await sendGraphMail(cfg, sender, body.to, body.subject, body.html || body.text);
+      return json(res, 200, { ok: true });
+    } catch(e) { return json(res, 400, { error: e.message }); }
   }
 
   // ── Employee calendar info (for holiday-aware day count) ──────────────────────
@@ -452,6 +666,9 @@ const server = http.createServer(async (req, res) => {
     if (method === 'POST') {
       const body = await readBody(req);
       const id = Q.submitLeaveRequest(emp.id, body, emp.name);
+      // Send email notifications (non-blocking)
+      const ctx = getLeaveEmailContext(id);
+      if (ctx) sendLeaveEmail('email_on_submit', null, ctx);
       return json(res, 200, { ok: true, id });
     }
   }
@@ -482,6 +699,13 @@ const server = http.createServer(async (req, res) => {
     try {
       if (action === 'approve') Q.approveLeaveRequest(reqId, emp.id, body.comment, emp.name);
       else Q.rejectLeaveRequest(reqId, emp.id, body.reason, emp.name);
+      // Send email after status is updated in DB (non-blocking)
+      const ctx = getLeaveEmailContext(reqId);
+      if (ctx) {
+        ctx.comment = body.comment || body.reason || '';
+        const triggerKey = action === 'approve' ? 'email_on_approve' : 'email_on_reject';
+        sendLeaveEmail(triggerKey, null, ctx);
+      }
       return json(res, 200, { ok: true });
     } catch (e) { return json(res, 400, { error: e.message }); }
   }
@@ -632,18 +856,51 @@ const server = http.createServer(async (req, res) => {
 
   // ── IP info — office recognition + external reputation with cache ────────────
   if (/^\/api\/ip-info\//.test(pathname)) {
-    const ipAddr = pathname.split('/')[3];
+    const ipAddr = decodeURIComponent(pathname.split('/')[3] || '');
     if (!ipAddr) return json(res, 400, { error: 'No IP' });
+
+    if (!global._ipCache) global._ipCache = new Map();
+
+    // Build FQDN→IP resolution cache (resolved once, cached)
+    if (!global._fqdnCache) global._fqdnCache = new Map();
 
     let officeIps = [];
     try { officeIps = JSON.parse(Q.getSetting('office_ips') || '[]'); } catch {}
 
+    // Resolve all office FQDNs to IPs (lazy, cached per entry)
+    const isIp = s => /^\d{1,3}(\.\d{1,3}){3}$/.test(s);
+
+    // Check each office entry — match by IP directly OR by resolving FQDN
     for (const office of officeIps) {
-      if ((office.ips || []).includes(ipAddr))
+      const entries = (office.ips || []).map(s => s.trim()).filter(Boolean);
+      // Direct IP match
+      if (entries.includes(ipAddr)) {
         return json(res, 200, { type:'office', label:office.label, ip:ipAddr });
+      }
+      // FQDN resolution match
+      for (const entry of entries) {
+        if (!isIp(entry)) {
+          // Resolve FQDN to IP(s), use cache
+          let resolved = global._fqdnCache.get(entry);
+          if (!resolved) {
+            try {
+              resolved = await new Promise((resolve, reject) => {
+                require('dns').resolve4(entry, (err, addrs) => err ? reject(err) : resolve(addrs));
+              });
+              global._fqdnCache.set(entry, resolved);
+              // Refresh FQDN cache every 5 minutes
+              setTimeout(() => global._fqdnCache.delete(entry), 5 * 60 * 1000);
+            } catch {
+              global._fqdnCache.set(entry, []);
+            }
+          }
+          if ((resolved || []).includes(ipAddr)) {
+            return json(res, 200, { type:'office', label:`${office.label} (${entry})`, ip:ipAddr });
+          }
+        }
+      }
     }
 
-    if (!global._ipCache) global._ipCache = new Map();
     if (global._ipCache.has(ipAddr)) return json(res, 200, global._ipCache.get(ipAddr));
 
     const isPrivate = /^(10\.|172\.(1[6-9]|2\d|3[01])\.|192\.168\.|127\.|::1)/.test(ipAddr);

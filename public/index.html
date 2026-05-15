@@ -224,6 +224,35 @@ const GET  = p => api('GET', p);
 const POST = (p,b) => api('POST', p, b);
 const PUT  = (p,b) => api('PUT', p, b);
 
+// ─── Central validation helper ────────────────────────────────────────────────
+// Returns true if valid, shows toast+highlights field if not
+function validate(rules) {
+  for (const [fieldId, checks, label] of rules) {
+    const el = document.getElementById(fieldId);
+    const val = el?.value?.trim() ?? '';
+    for (const [test, msg] of checks) {
+      let fail = false;
+      if (test === 'required')          fail = !val;
+      else if (test === 'email')        fail = !!val && !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(val);
+      else if (test === 'positiveInt')  fail = !val || isNaN(parseInt(val)) || parseInt(val) < 1;
+      else if (test === 'positiveNum')  fail = !val || isNaN(parseFloat(val)) || parseFloat(val) <= 0;
+      else if (test === 'nonZeroNum')   fail = !val || isNaN(parseFloat(val)) || parseFloat(val) === 0;
+      else if (test === 'hexColor')     fail = !!val && !/^#[0-9A-Fa-f]{6}$/.test(val);
+      else if (test === 'minLen')       fail = val.length > 0 && val.length < msg[1];
+      else if (typeof test === 'function') fail = test(val, el);
+      if (fail) {
+        const errMsg = typeof msg === 'string' ? msg : `${label}: ${test}`;
+        toast(errMsg, 'error');
+        el?.focus();
+        el?.style && (el.style.outline = '2px solid var(--red,#ef4444)');
+        setTimeout(() => el?.style && (el.style.outline = ''), 2500);
+        return false;
+      }
+    }
+  }
+  return true;
+}
+
 // ─── Toast ────────────────────────────────────────────────────────────────────
 function toast(msg, type='success') {
   const t = document.getElementById('toast');
@@ -486,8 +515,21 @@ async function vApplyLeave(el) {
 
 async function recalcDays() {
   const from = document.getElementById('lt-from')?.value;
-  const to   = document.getElementById('lt-to')?.value;
-  if (!from || !to || to < from) return;
+  const toEl = document.getElementById('lt-to');
+  let to = toEl?.value;
+
+  if (!from) return;
+
+  // Auto-set min on to-date input
+  if (toEl) toEl.min = from;
+
+  // If to is before from, snap to = from
+  if (to && to < from) {
+    if (toEl) toEl.value = from;
+    to = from;
+  }
+  if (!to) return;
+
   const days = await countWorkingDays(from, to);
   const daysEl    = document.getElementById('lt-days');
   const breakdown = document.getElementById('days-breakdown');
@@ -510,17 +552,47 @@ function updateChain() {
   ch.innerHTML = html;
 }
 async function submitLeave() {
-  const ltId = document.getElementById('lt-sel')?.value;
-  const days = parseFloat(document.getElementById('lt-days')?.value);
   const from = document.getElementById('lt-from')?.value;
   const to   = document.getElementById('lt-to')?.value;
-  const reason = document.getElementById('lt-reason')?.value;
-  if (!ltId || !days || !from || !to) { toast('Fill all required fields','error'); return; }
+  const days = parseFloat(document.getElementById('lt-days')?.value);
+  const ltId = document.getElementById('lt-sel')?.value;
+  const reason = document.getElementById('lt-reason')?.value?.trim();
+
+  if (!validate([
+    ['lt-sel',    [['required', 'Please select a leave type']]                    , 'Leave type'],
+    ['lt-from',   [['required', 'Please select a start date']]                    , 'From date'],
+    ['lt-to',     [['required', 'Please select an end date']]                     , 'To date'],
+    ['lt-reason', [['required', 'Please provide a reason for the leave request']] , 'Reason'],
+  ])) return;
+
+  if (to < from) {
+    toast('End date cannot be before start date', 'error');
+    const el = document.getElementById('lt-to');
+    if (el) { el.focus(); el.style.outline = '2px solid var(--red,#ef4444)'; setTimeout(()=>el.style.outline='', 2500); }
+    return;
+  }
+  if (days < 1) {
+    toast('No working days in the selected period — check weekends and public holidays', 'error');
+    return;
+  }
+  // Check balance (warn but don't block)
+  try {
+    const bals = await GET('/leave-balances');
+    const bal  = bals.find(b => String(b.leave_type_id) === String(ltId));
+    if (bal) {
+      const remaining = ((bal.accrued||0) + (bal.adjustment||0)) - (bal.used||0);
+      if (days > remaining) {
+        const ok = confirm(`Warning: You are requesting ${days}d but only have ${remaining.toFixed(1)}d remaining for this leave type.\n\nSubmit anyway?`);
+        if (!ok) return;
+      }
+    }
+  } catch {}
+
   try {
     const r = await POST('/leave-requests', { leave_type_id: parseInt(ltId), days, from_date: from, to_date: to, reason });
     toast(`Request ${r.id} submitted`);
     navigate('my-leaves');
-  } catch(e) { toast(e.message,'error'); }
+  } catch(e) { toast(e.message, 'error'); }
 }
 
 // ─── My leaves / Team leave history ─────────────────────────────────────────
@@ -1156,26 +1228,48 @@ async function loadIpInfo(ip) {
 function applyIpTooltip(ip, info) {
   document.querySelectorAll(`.ip-cell[data-ip="${ip}"]`).forEach(el => {
     if (info.type === 'office') {
-      el.style.color = '#22c55e';
+      el.style.color      = '#22c55e';
       el.style.fontWeight = '600';
-      el.title = `🏢 ${info.label}`;
-      el.innerHTML = `🏢 ${ip}`;
+      el.title            = `🏢 ${info.label}`;
+      el.innerHTML        = `🏢 ${ip}`;
+
     } else if (info.type === 'private') {
       el.style.color = 'var(--txt3)';
-      el.title = 'Private / Internal network';
+      el.title       = 'Private / Internal network';
+
     } else if (info.type === 'external') {
-      const flag = info.countryCode ? String.fromCodePoint(...[...info.countryCode.toUpperCase()].map(c=>0x1F1E6+c.charCodeAt(0)-65)) : '';
-      const riskIcon = info.risk==='high'?'🔴':info.risk==='medium'?'🟡':'🟢';
-      el.style.color = info.riskColor || 'var(--txt)';
-      el.title = [
-        `${flag} ${info.city}, ${info.country}`,
-        `ISP: ${info.isp}`,
-        `Risk: ${info.risk.toUpperCase()} ${riskIcon}`,
-        info.proxy ? '⚠ Proxy/VPN detected' : '',
-        info.hosting ? '⚠ Hosting/Datacenter' : '',
-      ].filter(Boolean).join('\n');
-      // Show flag inline
-      if (flag) el.innerHTML = `${flag} ${ip}`;
+      const flag      = info.flag || '';
+      const riskIcon  = info.risk==='critical'?'🚨':info.risk==='high'?'🔴':info.risk==='medium'?'🟡':'🟢';
+      el.style.color  = info.riskColor || 'var(--txt)';
+
+      const lines = [];
+      // Location block
+      const loc = [info.city !== '—' ? info.city : '', info.region !== '—' ? info.region : '', info.country !== '—' ? info.country : ''].filter(Boolean).join(', ');
+      if (loc) lines.push(`${flag} ${loc}`);
+      if (info.isp && info.isp !== '—')          lines.push(`ISP: ${info.isp}`);
+      if (info.asn)                               lines.push(`ASN: ${info.asn}`);
+      if (info.usageType && info.usageType !== '—') lines.push(`Type: ${info.usageType}`);
+      if (info.timezone && info.timezone !== '—') lines.push(`TZ: ${info.timezone}`);
+      if (info.hostname)                          lines.push(`Host: ${info.hostname}`);
+
+      // Risk block
+      lines.push('─────────────────────');
+      if (info.riskScore !== null && info.riskScore !== undefined) {
+        lines.push(`Abuse score: ${info.riskScore}/100 ${riskIcon}  ${info.riskLabel}`);
+        lines.push(`Reports: ${info.abuseReports}${info.abuseLastReport ? ' (last: '+info.abuseLastReport+')' : ''}`);
+      } else {
+        lines.push(`Risk: ${info.riskLabel} ${riskIcon}${info.abuseKeyMissing ? ' (no AbuseIPDB key)' : ''}`);
+      }
+      if (info.isTor)   lines.push('⚠ TOR exit node');
+      if (info.isVpn)   lines.push('⚠ VPN detected');
+      if (info.isProxy) lines.push('⚠ Datacenter / Hosting IP');
+
+      el.title = lines.join('\n');
+      el.innerHTML = flag ? `${flag} ${ip}` : ip;
+
+    } else {
+      el.style.color = 'var(--txt3)';
+      el.title       = `IP lookup failed${info.error ? ': ' + info.error : ''}`;
     }
   });
 }
@@ -1781,6 +1875,12 @@ function openLeaveTypeModal(idOrNull) {
   </div>`);
 }
 async function saveLeaveType(id) {
+  if (!validate([
+    ['lt-name',  [['required', 'Leave type name is required']]                                  , 'Name'],
+    ['lt-dpy',   [['positiveInt', 'Days per year must be a positive number']]                   , 'Days/year'],
+    ['lt-com',   [[(v) => parseInt(v||0) < 0, 'Carry-over max cannot be negative']]            , 'Carry-over max'],
+    ['lt-color', [['hexColor', 'Colour must be a valid hex code (e.g. #0078d4)']]              , 'Colour'],
+  ])) return;
   const data = { name:v('lt-name'), days_per_year:parseInt(v('lt-dpy')), approval_levels:parseInt(v('lt-lvl')), carry_over:v('lt-co'), carry_over_max:parseInt(v('lt-com')||0), doc_required:v('lt-doc')==='1', color:v('lt-color') };
   if (id !== null) data.id = id;
   try {
@@ -1878,6 +1978,11 @@ function openCalModal(cal) {
   </div>`);
 }
 async function saveCal(id) {
+  if (!validate([
+    ['cal-name',  [['required', 'Calendar name is required']]                                   , 'Name'],
+    ['cal-tz',    [['required', 'Timezone is required']]                                        , 'Timezone'],
+    ['cal-color', [['required', 'Colour is required'], ['hexColor', 'Must be a valid hex colour (e.g. #0078d4)']], 'Colour'],
+  ])) return;
   const holidays = v('cal-hols').split(',').map(s=>s.trim()).filter(Boolean);
   const data = { name:v('cal-name'), timezone:v('cal-tz'), weekends:v('cal-wk'), color:v('cal-color'), holidays };
   if (id) data.id = id;
@@ -2154,16 +2259,25 @@ function openAdjustModal() {
   </div>`);
 }
 async function doAdjust() {
-  const empId = parseInt(v('adj-emp'));
-  const ltId  = parseInt(v('adj-lt'));
-  const days  = parseFloat(v('adj-days'));
-  const year  = parseInt(v('adj-year'));
+  const empId  = parseInt(v('adj-emp'));
+  const ltId   = parseInt(v('adj-lt'));
+  const days   = parseFloat(v('adj-days'));
+  const year   = parseInt(v('adj-year'));
   const reason = v('adj-reason');
-  if (!empId) { toast('Select an employee','error'); return; }
-  if (!ltId)  { toast('Select a leave type','error'); return; }
-  if (isNaN(days) || days === 0) { toast('Enter a non-zero adjustment','error'); return; }
+
+  if (!validate([
+    ['adj-emp',    [[(v) => !v || v==='', 'Please select an employee']]                        , 'Employee'],
+    ['adj-lt',     [[(v) => !v || v==='', 'Please select a leave type']]                       , 'Leave type'],
+    ['adj-days',   [['nonZeroNum', 'Adjustment cannot be zero — enter a positive or negative value']], 'Days'],
+    ['adj-year',   [['positiveInt', 'Year must be valid'], [(v) => parseInt(v)<2020||parseInt(v)>2100, 'Year must be between 2020 and 2100']], 'Year'],
+    ['adj-reason', [['required', 'Please enter a reason for this adjustment']]                  , 'Reason'],
+  ])) return;
+
+  if (isNaN(empId) || empId < 1) { toast('Please select an employee', 'error'); return; }
+  if (isNaN(ltId)  || ltId  < 1) { toast('Please select a leave type', 'error'); return; }
+
   try {
-    await POST('/leave-balances/adjust',{ employee_id:empId, leave_type_id:ltId, year, adjustment:days, reason });
+    await POST('/leave-balances/adjust', { employee_id:empId, leave_type_id:ltId, year, adjustment:days, reason });
     closeModal(); toast(`Balance adjusted by ${days>0?'+':''}${days}d`); navigate('leave-balance');
   } catch(e) { toast(e.message,'error'); }
 }
@@ -2293,6 +2407,11 @@ function openEmpModal(idOrNull) {
   </div>`);
 }
 async function saveEmp(id) {
+  if (!validate([
+    ['em-name',  [['required', 'Employee full name is required']]                               , 'Name'],
+    ['em-email', [['required', 'Email address is required'], ['email', 'Enter a valid email address']], 'Email'],
+    ['em-dept',  [['required', 'Department is required']]                                       , 'Dept'],
+  ])) return;
   const managerId = v('em-manager');
   const data = { name:v('em-name'), email:v('em-email'), dept:v('em-dept'), team:v('em-team'), company:v('em-company'), title:v('em-title'), role:v('em-role'), manager_id:managerId?parseInt(managerId):null, cal_id:v('em-cal'), bal_type:v('em-bal') };
   try {
@@ -2359,6 +2478,9 @@ function openDeptModal(idOrNull) {
   </div>`);
 }
 async function saveDept(id) {
+  if (!validate([
+    ['dp-name',  [['required', 'Department name is required']]                                  , 'Name'],
+  ])) return;
   const teams = v('dp-teams').split(',').map(s=>s.trim()).filter(Boolean);
   const data = { name:v('dp-name'), teams, cal_id:v('dp-cal') };
   if (id !== null) data.id = id;
@@ -2418,8 +2540,24 @@ async function vSystem(el) {
       </div>
     </div>
   </div>
-  <!-- Office IPs — full width card -->
+  <!-- AbuseIPDB key + Office IPs — full width cards -->
   <div class="card" style="margin-top:16px">
+    <div class="card-title">IP reputation — AbuseIPDB API key
+      <span style="font-size:11px;font-weight:400;color:var(--txt3)"> — real abuse score (0–100) for each IP in Activity page</span>
+    </div>
+    <div style="font-size:12px;color:var(--txt2);margin-bottom:12px">
+      Free at <strong>abuseipdb.com</strong> — 1,000 checks/day. Get your free API key at
+      <a href="https://www.abuseipdb.com/register" target="_blank" style="color:var(--az)">abuseipdb.com/register</a>.
+      Without a key, risk is estimated from ISP name only.
+    </div>
+    <div style="display:flex;gap:8px;align-items:center">
+      <input type="password" id="s-abuse-key" placeholder="Paste your AbuseIPDB API key here"
+        style="flex:1;font-family:monospace;font-size:12px">
+      <button class="btn btn-primary" onclick="saveAbuseKey()">Save key</button>
+      <button class="btn" onclick="testAbuseKey()">Test</button>
+    </div>
+    <div id="abuse-key-status" style="font-size:12px;margin-top:8px;color:var(--txt3)">Loading…</div>
+  </div>
     <div class="card-title">Office IP addresses <span style="font-size:11px;font-weight:400;color:var(--txt3)">— used for IP recognition in Activity page</span></div>
     <div style="font-size:12px;color:var(--txt2);margin-bottom:12px">
       Add your office public IPs here. These will be highlighted in green in the Activity page with the office name shown on hover.
@@ -2453,6 +2591,18 @@ async function vSystem(el) {
       ips.forEach(entry => addOfficeIpRow(entry.label, entry.ips.join(', ')));
       if (!ips.length) addOfficeIpRow('', '');
     }
+    // Load AbuseIPDB key status
+    const keyEl  = document.getElementById('s-abuse-key');
+    const statEl = document.getElementById('abuse-key-status');
+    if (keyEl && s.abuseipdb_key) {
+      keyEl.placeholder = '••••••••••••••••••••••••••••••••••••••••••••• (key saved)';
+    }
+    if (statEl) {
+      statEl.textContent = s.abuseipdb_key
+        ? '✓ API key configured — real abuse scores active'
+        : '⚠ No API key — risk estimated from ISP name only';
+      statEl.style.color = s.abuseipdb_key ? '#22c55e' : '#f59e0b';
+    }
   }).catch(()=>{});
 }
 
@@ -2466,6 +2616,38 @@ function addOfficeIpRow(label='', ips='') {
     <input type="text" placeholder="IPs comma-separated (e.g. 5.31.29.122, 10.0.0.1)" value="${ips}" style="flex:2;font-size:12px;padding:5px 8px;font-family:monospace" class="oip-ips">
     <button class="btn btn-danger" style="font-size:11px;padding:3px 8px" onclick="this.parentElement.remove()">✕</button>`;
   list.appendChild(row);
+}
+
+async function saveAbuseKey() {
+  const key = document.getElementById('s-abuse-key')?.value?.trim();
+  if (!key) { toast('Paste your AbuseIPDB API key first', 'error'); return; }
+  try {
+    await POST('/settings', { abuseipdb_key: key });
+    // Bust IP cache so next lookups use the new key
+    Object.keys(_ipInfoCache).forEach(k => delete _ipInfoCache[k]);
+    document.getElementById('s-abuse-key').value = '';
+    document.getElementById('s-abuse-key').placeholder = '••••••••••••••••••••••••••••••••••••• (key saved)';
+    const statEl = document.getElementById('abuse-key-status');
+    if (statEl) { statEl.textContent = '✓ API key saved — real abuse scores now active'; statEl.style.color='#22c55e'; }
+    toast('AbuseIPDB key saved');
+  } catch(e) { toast(e.message, 'error'); }
+}
+
+async function testAbuseKey() {
+  const key = document.getElementById('s-abuse-key')?.value?.trim();
+  if (!key) { toast('Enter the API key first to test it', 'error'); return; }
+  try {
+    // Test against a known safe IP (Cloudflare DNS)
+    const r = await fetch(`https://api.abuseipdb.com/api/v2/check?ipAddress=1.1.1.1&maxAgeInDays=90`, {
+      headers: { Key: key, Accept: 'application/json' }
+    });
+    const data = await r.json();
+    if (data?.data?.ipAddress) {
+      toast(`✓ API key valid — AbuseIPDB responding (test IP: ${data.data.ipAddress}, score: ${data.data.abuseConfidenceScore})`);
+    } else if (data?.errors) {
+      toast(`API key error: ${data.errors[0]?.detail || 'invalid key'}`, 'error');
+    }
+  } catch(e) { toast(`Test failed: ${e.message}`, 'error'); }
 }
 
 async function saveOfficeIps() {
@@ -2573,6 +2755,14 @@ function startSyncStream() {
   es.onerror = () => es.close();
 }
 async function saveEntra() {
+  if (!validate([
+    ['ec-tid',  [['required', 'Tenant ID is required']]   , 'Tenant ID'],
+    ['ec-cid',  [['required', 'Client ID is required']]   , 'Client ID'],
+    ['ec-sec',  [['required', 'Client secret is required']], 'Client secret'],
+    ['ec-redir',[['required', 'Redirect URI is required'], [(v)=>!!v&&!v.startsWith('http'), 'Redirect URI must start with http']], 'Redirect URI'],
+    ['ec-int',  [['positiveInt', 'Sync interval must be at least 1 minute']], 'Sync interval'],
+    ['ec-idle', [['positiveInt', 'Idle threshold must be at least 1 minute']], 'Idle threshold'],
+  ])) return;
   const data = { tenant_id:v('ec-tid'), client_id:v('ec-cid'), client_secret:v('ec-sec'), redirect_uri:v('ec-redir'), sync_interval_min:parseInt(v('ec-int')), idle_threshold_min:parseInt(v('ec-idle')), default_cal_id:v('ec-cal'), company_filter:v('ec-company')||'*', auto_add_users:document.getElementById('tog-autouser')?.classList.contains('on')?1:0 };
   try { await POST('/entra/config', data); toast('Entra credentials saved'); checkEntraStatus(); }
   catch(e) { toast(e.message,'error'); }
@@ -2739,8 +2929,14 @@ async function vEmailSettings(el) {
 }
 
 async function saveEmailSettings() {
+  const enabled = document.getElementById('tog-email-on')?.classList.contains('on');
+  if (enabled && !validate([
+    ['es-sender', [['required', 'Sender mailbox UPN is required when email is enabled'],
+                   ['email',    'Sender must be a valid email address (UPN)']]            , 'Sender'],
+    ['es-fname',  [['required', 'Display name is required']]                              , 'From name'],
+  ])) return;
   const data = {
-    email_enabled:    document.getElementById('tog-email-on')?.classList.contains('on') ? '1' : '0',
+    email_enabled:    enabled ? '1' : '0',
     email_sender:     v('es-sender'),
     email_from_name:  v('es-fname'),
     email_on_submit:  document.getElementById('tog-email_on_submit')?.classList.contains('on')   ? '1':'0',
@@ -2762,36 +2958,6 @@ async function testEmailSettings() {
   } catch(e) { toast(e.message, 'error'); }
 }
 
-async function saveEmailSettings() {
-  const data = {
-    smtp_host:      document.getElementById('es-host')?.value,
-    smtp_port:      document.getElementById('es-port')?.value,
-    smtp_secure:    document.getElementById('es-sec')?.value,
-    smtp_user:      document.getElementById('es-user')?.value,
-    smtp_pass:      document.getElementById('es-pass')?.value,
-    smtp_from:      document.getElementById('es-from')?.value,
-    smtp_from_name: document.getElementById('es-fname')?.value,
-    email_enabled:  document.getElementById('tog-email-on')?.classList.contains('on') ? '1' : '0',
-    email_on_submit:   document.getElementById('tog-email_on_submit')?.classList.contains('on') ? '1':'0',
-    email_on_approve:  document.getElementById('tog-email_on_approve')?.classList.contains('on') ? '1':'0',
-    email_on_reject:   document.getElementById('tog-email_on_reject')?.classList.contains('on') ? '1':'0',
-    email_on_pending:  document.getElementById('tog-email_on_pending')?.classList.contains('on') ? '1':'0',
-    email_reminder:    document.getElementById('tog-email_reminder')?.classList.contains('on') ? '1':'0',
-    email_monthly_bal: document.getElementById('tog-email_monthly_bal')?.classList.contains('on') ? '1':'0',
-    email_on_sync:     document.getElementById('tog-email_on_sync')?.classList.contains('on') ? '1':'0',
-  };
-  try {
-    await POST('/email-settings', data);
-    toast('Email settings saved');
-  } catch(e) { toast(e.message, 'error'); }
-}
-
-async function testEmailSettings() {
-  try {
-    const r = await POST('/email-settings/test', {});
-    toast(r.message || 'Config validated');
-  } catch(e) { toast(e.message, 'error'); }
-}
 
 // ─── Boot ─────────────────────────────────────────────────────────────────────
 checkSession();

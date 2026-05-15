@@ -910,37 +910,126 @@ const server = http.createServer(async (req, res) => {
       return json(res, 200, r);
     }
 
-    try {
-      const result = await new Promise((resolve, reject) => {
-        const r = https.request({
-          hostname:'ip-api.com',
-          path:`/json/${ipAddr}?fields=status,country,countryCode,city,isp,org,proxy,hosting,query`,
-          method:'GET', headers:{'User-Agent':'WorkIQ/1.0'}
+    // ── Dual lookup: ipinfo.io (location) + AbuseIPDB (real risk score) ─────────
+    // ipinfo.io  : free, 50k req/month, no key, HTTPS — city/country/ASN/ISP/timezone
+    // AbuseIPDB  : free, 1k req/day, API key in settings — abuse score 0-100, reports,
+    //              usage type, VPN/TOR/proxy flags from real threat intelligence
+    // Both run in parallel; AbuseIPDB is optional (graceful degradation if no key)
+
+    function httpsGet(hostname, path, headers={}) {
+      return new Promise((resolve, reject) => {
+        const r = https.request({ hostname, path, method:'GET',
+          headers:{ 'User-Agent':'WorkIQ/1.0', 'Accept':'application/json', ...headers }
         }, res => {
-          let b=''; res.on('data',d=>b+=d);
-          res.on('end',()=>{ try{resolve(JSON.parse(b));}catch{reject(new Error('parse'));} });
+          let b=''; res.on('data', d=>b+=d);
+          res.on('end', ()=>{ try{ resolve(JSON.parse(b)); } catch{ reject(new Error('parse')); } });
         });
-        r.on('error',reject);
-        r.setTimeout(5000,()=>{ r.destroy(); reject(new Error('timeout')); });
+        r.on('error', reject);
+        r.setTimeout(6000, ()=>{ r.destroy(); reject(new Error('timeout')); });
         r.end();
       });
-      let risk='low', riskColor='#22c55e';
-      if (result.proxy || result.hosting) { risk='medium'; riskColor='#f59e0b'; }
-      if (result.proxy && result.hosting) { risk='high';   riskColor='#ef4444'; }
-      const info = {
-        type:'external', ip:ipAddr,
-        country:result.country||'—', countryCode:result.countryCode||'',
-        city:result.city||'—', isp:result.isp||'—',
-        proxy:result.proxy||false, hosting:result.hosting||false,
-        risk, riskColor,
-        label:`${result.city||''}, ${result.country||'Unknown'}`.replace(/^, /,'')
-      };
-      global._ipCache.set(ipAddr, info);
-      if (global._ipCache.size > 2000) global._ipCache.delete(global._ipCache.keys().next().value);
-      return json(res, 200, info);
-    } catch(e) {
-      return json(res, 200, { type:'unknown', ip:ipAddr, label:'Lookup failed', risk:'unknown' });
     }
+
+    // Run both lookups in parallel
+    const abuseKey = Q.getSetting('abuseipdb_key') || '';
+    const [ipinfoResult, abuseResult] = await Promise.allSettled([
+      httpsGet('ipinfo.io', `/${ipAddr}/json`),
+      abuseKey
+        ? httpsGet('api.abuseipdb.com',
+            `/api/v2/check?ipAddress=${encodeURIComponent(ipAddr)}&maxAgeInDays=90&verbose`,
+            { Key: abuseKey })
+        : Promise.reject(new Error('no key')),
+    ]);
+
+    // ── Parse ipinfo.io ───────────────────────────────────────────────────────
+    const geo = ipinfoResult.status === 'fulfilled' ? ipinfoResult.value : {};
+    const orgRaw   = geo.org || '';
+    const asnMatch = orgRaw.match(/^(AS\d+)\s+(.+)$/);
+    const asn      = asnMatch ? asnMatch[1] : '';
+    const isp      = asnMatch ? asnMatch[2] : orgRaw;
+    const countryCode = geo.country || '';
+    const flag = countryCode.length === 2
+      ? String.fromCodePoint(...[...countryCode.toUpperCase()].map(c=>0x1F1E6+c.charCodeAt(0)-65))
+      : '';
+
+    // ── Parse AbuseIPDB ───────────────────────────────────────────────────────
+    let abuseScore = null, abuseReports = 0, abuseUsageType = '', abuseLastReport = '';
+    let isTor = false, isVpn = false, isProxy = false;
+
+    if (abuseResult.status === 'fulfilled' && abuseResult.value?.data) {
+      const ab = abuseResult.value.data;
+      abuseScore    = ab.abuseConfidenceScore ?? null;  // 0–100
+      abuseReports  = ab.totalReports ?? 0;
+      abuseUsageType= ab.usageType || '';
+      abuseLastReport = ab.lastReportedAt ? ab.lastReportedAt.slice(0,10) : '';
+      isTor         = ab.isTor         || false;
+      isVpn         = ab.isWhitelisted === false && /vpn|proxy/i.test(ab.usageType);
+      isProxy       = ab.usageType === 'Data Center/Web Hosting/Transit' || false;
+    }
+
+    // ── Merged risk score ─────────────────────────────────────────────────────
+    // Priority: AbuseIPDB score (real data) > keyword fallback (no key case)
+    let risk, riskColor, riskLabel, riskScore;
+
+    if (abuseScore !== null) {
+      // Real abuse score: 0 = clean, 100 = confirmed malicious
+      riskScore = abuseScore;
+      if (abuseScore === 0 && abuseReports === 0) {
+        risk = 'clean'; riskColor = '#22c55e'; riskLabel = 'Clean';
+      } else if (abuseScore < 25) {
+        risk = 'low';    riskColor = '#22c55e'; riskLabel = 'Low';
+      } else if (abuseScore < 60) {
+        risk = 'medium'; riskColor = '#f59e0b'; riskLabel = 'Medium';
+      } else if (abuseScore < 85) {
+        risk = 'high';   riskColor = '#ef4444'; riskLabel = 'High';
+      } else {
+        risk = 'critical'; riskColor = '#7c3aed'; riskLabel = 'Critical';
+      }
+    } else {
+      // Fallback: keyword-based on ISP name (no AbuseIPDB key)
+      const orgLower = isp.toLowerCase();
+      const isHosting = /datacenter|datacamp|digitalocean|amazon|google|microsoft|azure|linode|vultr|hetzner|ovh|leaseweb|choopa|quadranet|psychz|colocrossing|serverius|frantech|buyvm|hosting|cloud|cdn|coloc|vps|dedicated/.test(orgLower);
+      const isKnownVpn = /vpn|proxy|tor|anonymi|mullvad|nordvpn|expressvpn|surfshark|private.internet|ipvanish|cyberghost|protonvpn|windscribe/.test(orgLower);
+      riskScore = null;
+      if (isKnownVpn)            { risk='high';   riskColor='#ef4444'; riskLabel='High (VPN/Proxy ISP)'; }
+      else if (isHosting)        { risk='medium'; riskColor='#f59e0b'; riskLabel='Medium (Datacenter)'; }
+      else                       { risk='low';    riskColor='#22c55e'; riskLabel='Low'; }
+    }
+
+    const usageTypeLabel = abuseUsageType || (isp ? 'Commercial' : '—');
+
+    const info = {
+      type:          'external',
+      ip:            ipAddr,
+      // Location (ipinfo.io)
+      country:       geo.country   || '—',
+      countryCode,
+      flag,
+      city:          geo.city      || '—',
+      region:        geo.region    || '—',
+      timezone:      geo.timezone  || '—',
+      isp,
+      asn,
+      org:           orgRaw,
+      hostname:      geo.hostname  || '',
+      // Risk (AbuseIPDB when available)
+      risk,
+      riskColor,
+      riskLabel,
+      riskScore,                          // 0–100 or null
+      abuseReports,
+      abuseLastReport,
+      usageType:     usageTypeLabel,
+      isTor,
+      isVpn,
+      isProxy,
+      abuseKeyMissing: !abuseKey,
+      label: [geo.city, geo.country].filter(Boolean).join(', ') || 'Unknown',
+    };
+
+    global._ipCache.set(ipAddr, info);
+    if (global._ipCache.size > 2000) global._ipCache.delete(global._ipCache.keys().next().value);
+    return json(res, 200, info);
   }
 
   if (pathname === '/api/activity') {

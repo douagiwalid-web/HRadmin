@@ -175,6 +175,11 @@ try {
     );
   }
 } catch {}
+// Seed abuseipdb_key setting if missing (empty = no key, enter in System Settings)
+try {
+  const abk = db.prepare("SELECT value FROM settings WHERE key='abuseipdb_key'").get();
+  if (!abk) db.prepare("INSERT INTO settings (key,value) VALUES ('abuseipdb_key','')").run();
+} catch {}
 try { db.exec(`CREATE TABLE IF NOT EXISTS employee_presence (
   employee_id INTEGER PRIMARY KEY REFERENCES employees(id),
   entra_id TEXT, availability TEXT, activity TEXT,
